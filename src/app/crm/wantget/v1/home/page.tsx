@@ -22,7 +22,10 @@ export default async function HomePage() {
               PLATAFORMA CRM
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-              Bienvenido, {session.user.name || session.user.email}
+              Bienvenido,{" "}
+              {[session.user.name, session.user.apellidos]
+                .filter(Boolean)
+                .join(" ") || session.user.email}
             </h1>
           </div>
 

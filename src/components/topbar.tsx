@@ -102,7 +102,9 @@ export function Topbar() {
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuLabel className="flex flex-col gap-0.5 p-2 font-normal">
                   <span className="truncate font-medium">
-                    {session.user.name}
+                    {[session.user.name, session.user.apellidos]
+                      .filter(Boolean)
+                      .join(" ")}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
                     {session.user.email}

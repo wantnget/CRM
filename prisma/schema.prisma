@@ -66,13 +66,6 @@ enum TipoCierreSesion {
   EXPIRACION_TOKEN
 }
 
-enum EstadoCodigoVerificacion {
-  VIGENTE
-  CONSUMIDO
-  EXPIRADO
-  ANULADO
-}
-
 enum TipoCargue {
   METAS
   CAMPANAS
@@ -213,21 +206,26 @@ model Oficina {
 // MÓDULO: IDENTIDAD
 // =====================================================================
 
+/// Única entidad de identidad del sistema (estructura_bd_crm.json, módulo
+/// IDENTIDAD). Es a la vez el maestro de negocio y el modelo `user` de
+/// better-auth: `email` es "el único dato que el usuario digita en el login".
+/// El mapeo de campos vive en src/lib/auth.ts (user.modelName / user.fields).
 model Usuario {
   id                  String         @id @default(uuid()) @db.Uuid
   companiaId          String?        @map("compania_id") @db.Uuid
   email               String         @unique @db.VarChar(160)
   numeroIdentificacion String        @map("numero_identificacion") @db.VarChar(20)
   tipoIdentificacion  TipoIdentificacion @default(CC) @map("tipo_identificacion")
-  nombreCompleto      String         @map("nombre_completo") @db.VarChar(200)
+  nombres             String         @db.VarChar(100)
+  apellidos           String         @db.VarChar(100)
   telefonoWhatsapp    String         @map("telefono_whatsapp") @db.VarChar(20)
   rolCodigo           String         @map("rol_codigo") @db.VarChar(30)
   oficinaId           String?        @map("oficina_id") @db.Uuid
-  // Enlace al usuario de better-auth (tabla "user"), que es el motor de
-  // login/sesión. Opcional: un Usuario puede existir en el negocio antes de
-  // tener credenciales, y si se borra el registro de auth el Usuario sobrevive.
-  authUserId          String?        @unique @map("auth_user_id")
   estado              EstadoGenerico @default(ACTIVO)
+  // Campos que exige better-auth sobre su modelo `user`. `emailVerified` lo
+  // escribe el plugin emailOTP al validar el código; `image` no se usa hoy.
+  emailVerified       Boolean        @default(false) @map("email_verified")
+  image               String?
   ultimoAccesoAt      DateTime?      @map("ultimo_acceso_at") @db.Timestamptz(6)
   createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy           String?        @map("created_by") @db.Uuid
@@ -237,14 +235,15 @@ model Usuario {
   compania Compania? @relation(fields: [companiaId], references: [id])
   rol      Rol       @relation(fields: [rolCodigo], references: [codigo])
   oficina  Oficina?  @relation(fields: [oficinaId], references: [id])
-  authUser User?     @relation(fields: [authUserId], references: [id], onDelete: SetNull)
+
+  // Tablas propias de better-auth. `sessions` reemplaza al modelo Sesion.
+  sessions Session[]
+  accounts Account[]
 
   usuarioOficinas          UsuarioOficina[]
   usuarioCanales           UsuarioCanal[]
   comoGestorAsignaciones   AsignacionGestorLider[] @relation("GestorEnAsignacion")
   comoLiderAsignaciones    AsignacionGestorLider[] @relation("LiderEnAsignacion")
-  codigosVerificacion      CodigoVerificacion[]
-  sesiones                 Sesion[]
   asignacionesComoGestor   AsignacionAsociado[]    @relation("GestorEnAsignacionAsociado")
   asignacionesRealizadas   AsignacionAsociado[]    @relation("LiderQueAsigna")
   oportunidadesComoGestor  Oportunidad[]           @relation("GestorEnOportunidad")
@@ -320,55 +319,76 @@ model AsignacionGestorLider {
 // MÓDULO: AUTENTICACIÓN
 // =====================================================================
 
-model CodigoVerificacion {
-  id                  String                   @id @default(uuid()) @db.Uuid
-  usuarioId           String                   @map("usuario_id") @db.Uuid
-  codigoHash          String                   @map("codigo_hash") @db.VarChar(255)
-  canalEnvio          String                   @default("WHATSAPP") @map("canal_envio") @db.VarChar(20)
-  destinoEnmascarado  String                   @map("destino_enmascarado") @db.VarChar(30)
-  generadoAt          DateTime                 @map("generado_at") @db.Timestamptz(6)
-  expiraAt            DateTime                 @map("expira_at") @db.Timestamptz(6)
-  consumidoAt         DateTime?                @map("consumido_at") @db.Timestamptz(6)
-  estado              EstadoCodigoVerificacion @default(VIGENTE)
-  intentosFallidos    Int                      @default(0) @map("intentos_fallidos") @db.SmallInt
-  reenvioDeId         String?                  @map("reenvio_de_id") @db.Uuid
-  ipSolicitud         String?                  @map("ip_solicitud") @db.Inet
-  userAgent           String?                  @map("user_agent")
+// Las tablas de este módulo las administra better-auth. Reemplazan a los
+// modelos Sesion y CodigoVerificacion del diseño preliminar:
+//
+//   codigo_verificacion -> verification  (OTP; el plugin emailOTP guarda el
+//     código hasheado en `value` y le anexa el contador de intentos, por eso
+//     no era mapeable a codigo_hash + intentos_fallidos)
+//   sesion              -> session       (ventana de sesión; `expiresAt` es el
+//     cierre programado, calculado desde compania.horaCierreSesion en el hook
+//     de src/lib/auth.ts, que resuelve PA-04)
+//
+// Reglas del spec que quedan cubiertas aquí: RN-21 (expiresIn 120s), RN-24
+// (better-auth sobrescribe el verification por identifier), RN-25
+// (allowedAttempts 5), RN-27/RN-28 (cierre manual y automático + tipoCierre).
 
-  usuario   Usuario              @relation(fields: [usuarioId], references: [id])
-  reenvioDe CodigoVerificacion?  @relation("ReenvioCodigo", fields: [reenvioDeId], references: [id])
-  reenvios  CodigoVerificacion[] @relation("ReenvioCodigo")
-  sesiones  Sesion[]
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([usuarioId, estado, expiraAt])
-  @@index([expiraAt])
-  @@map("codigo_verificacion")
+  // Campos de negocio añadidos vía session.additionalFields (src/lib/auth.ts).
+  // companiaId es requisito de aislamiento multi-tenant del spec; tipoCierre
+  // conserva RN-28 (distinguir cierre MANUAL de AUTOMATICO).
+  companiaId String?           @map("compania_id") @db.Uuid
+  tipoCierre TipoCierreSesion? @map("tipo_cierre")
+
+  userId String  @map("user_id") @db.Uuid
+  user   Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  auditorias Auditoria[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("session")
 }
 
-model Sesion {
-  id                  String            @id @default(uuid()) @db.Uuid
-  usuarioId           String            @map("usuario_id") @db.Uuid
-  companiaId          String?           @map("compania_id") @db.Uuid
-  codigoVerificacionId String           @unique @map("codigo_verificacion_id") @db.Uuid
-  inicioAt            DateTime          @map("inicio_at") @db.Timestamptz(6)
-  // PA-04 resuelto por el prototipo: no es una duración desde el login, es una
-  // hora fija diaria (compania.horaCierreSesion, ej. "18:30"). La app calcula
-  // este valor como la fecha de inicioAt a esa hora (o el día siguiente si el
-  // login ya ocurrió después de esa hora).
-  cierreProgramadoAt  DateTime          @map("cierre_programado_at") @db.Timestamptz(6)
-  cierreRealAt        DateTime?         @map("cierre_real_at") @db.Timestamptz(6)
-  tipoCierre          TipoCierreSesion? @map("tipo_cierre")
-  jti                 String            @unique @db.VarChar(80)
-  ip                  String?           @db.Inet
-  userAgent           String?           @map("user_agent")
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  usuario           Usuario            @relation(fields: [usuarioId], references: [id])
-  codigoVerificacion CodigoVerificacion @relation(fields: [codigoVerificacionId], references: [id])
-  auditorias         Auditoria[]
+  userId String  @map("user_id") @db.Uuid
+  user   Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([usuarioId, cierreRealAt])
-  @@index([cierreProgramadoAt])
-  @@map("sesion")
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }
 
 // =====================================================================
@@ -567,80 +587,11 @@ model Auditoria {
 
   compania Compania? @relation(fields: [companiaId], references: [id])
   usuario  Usuario?  @relation(fields: [usuarioId], references: [id])
-  sesion   Sesion?   @relation(fields: [sesionId], references: [id])
+  // Apunta a la tabla de sesiones de better-auth, que reemplazó a `sesion`.
+  sesion   Session?  @relation(fields: [sesionId], references: [id])
 
   @@index([tabla, registroId, ocurridoAt])
   @@index([usuarioId, ocurridoAt])
   @@map("auditoria")
 }
 
-// =====================================================================
-// MÓDULO: AUTENTICACIÓN (better-auth)
-// =====================================================================
-// Estas tablas las administra better-auth. Son el motor de login/sesión;
-// el modelo de negocio vive en Usuario y se enlaza vía Usuario.authUserId.
-
-model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  phone         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  sessions Session[]
-  accounts Account[]
-
-  // Contraparte de negocio. Ver Usuario.authUserId.
-  usuario Usuario?
-
-  @@map("user")
-}
-
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("account")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("verification")
-}
