@@ -17,11 +17,7 @@ export default async function ConsultaPage() {
 
   return (
     <>
-      <PageHeader
-        contexto={contexto}
-        titulo={titulo}
-        descripcion="Resultados comerciales del mes y del acumulado del año, cruzados contra las metas del periodo."
-      />
+      <PageHeader contexto={contexto} titulo={titulo} />
       <div className="px-8 py-8">
         <ModuloPendiente
           referencia="CRM.docx §5.2, §6.2, §7.2 · RN-55 a RN-57"

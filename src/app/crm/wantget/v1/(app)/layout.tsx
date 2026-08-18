@@ -21,7 +21,10 @@ export default async function AppLayout({
   if (!contexto) redirect(RUTA_SIGN_IN);
 
   return (
-    <SidebarProvider className="min-h-full">
+    // Sin clases de altura: SidebarProvider ya trae min-h-svh y
+    // tailwind-merge lo eliminaria al recibir cualquier otra min-h-*, que es
+    // lo que hacia que el fondo del sidebar se cortara a media pagina.
+    <SidebarProvider>
       <AppSidebar contexto={contexto} />
       <SidebarInset className="bg-want-fondo">{children}</SidebarInset>
       <SessionWatcher />

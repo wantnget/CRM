@@ -10,11 +10,7 @@ export default async function MetasPage() {
 
   return (
     <>
-      <PageHeader
-        contexto={contexto}
-        titulo="Metas"
-        descripcion="Cargue el archivo CSV con las metas por producto y gestor del periodo."
-      />
+      <PageHeader contexto={contexto} titulo="Metas" />
       <div className="px-8 py-8">
         <ModuloPendiente
           referencia="CRM.docx §5.2 · RN-47 a RN-50, validaciones V-01 a V-07"

@@ -10,11 +10,7 @@ export default async function ProspeccionPage() {
 
   return (
     <>
-      <PageHeader
-        contexto={contexto}
-        titulo="Prospección"
-        descripcion="Consulte sus ventas en curso y cerradas, o inicie una nueva gestión con los asociados asignados por su líder."
-      />
+      <PageHeader contexto={contexto} titulo="Prospección" />
       <div className="px-8 py-8">
         <ModuloPendiente
           referencia="CRM.docx §7.3 · RN-31 a RN-46"

@@ -10,12 +10,12 @@ export default async function UsuariosPage() {
 
   return (
     <>
-      <PageHeader
-        contexto={contexto}
-        titulo="Usuarios"
-        descripcion="Asigne el rol de plataforma a cada usuario. Para el rol Gestor habilite los canales de comunicación disponibles en su bandeja de prospección."
-      />
+      <PageHeader contexto={contexto} titulo="Usuarios" />
       <div className="px-8 py-8">
+        <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+          Asigne el rol de plataforma a cada usuario. Para el rol Gestor habilite los canales de comunicación disponibles en su bandeja de prospección.
+        </p>
+
         <ModuloPendiente
           referencia="CRM.docx §4.2 · RN-06 a RN-12, RN-15 a RN-18"
           pendiente="Tabla de usuarios de la compañía con identificación, rol, oficina, canales y estado, más el alta y edición sin borrado físico."

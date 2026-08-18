@@ -18,10 +18,14 @@ export function periodoVigente(ahora: Date = new Date()): string {
 type PageHeaderProps = {
   contexto: ContextoUsuario;
   titulo: string;
-  descripcion?: string;
 };
 
-export function PageHeader({ contexto, titulo, descripcion }: PageHeaderProps) {
+/**
+ * El encabezado lleva solo eyebrow y titulo, como en el prototipo. El texto
+ * introductorio de cada modulo vive en el cuerpo de la pagina, que es donde el
+ * prototipo lo ubica (junto al boton de accion, sobre la tabla).
+ */
+export function PageHeader({ contexto, titulo }: PageHeaderProps) {
   // ADMIN_GENERAL no pertenece a una compañía, así que no hay razón social que
   // mostrar como eyebrow; se rotula por rol.
   const eyebrow = contexto.compania
@@ -54,11 +58,6 @@ export function PageHeader({ contexto, titulo, descripcion }: PageHeaderProps) {
         </div>
       </div>
 
-      {descripcion ? (
-        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-          {descripcion}
-        </p>
-      ) : null}
     </header>
   );
 }
