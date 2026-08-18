@@ -223,6 +223,10 @@ model Usuario {
   telefonoWhatsapp    String         @map("telefono_whatsapp") @db.VarChar(20)
   rolCodigo           String         @map("rol_codigo") @db.VarChar(30)
   oficinaId           String?        @map("oficina_id") @db.Uuid
+  // Enlace al usuario de better-auth (tabla "user"), que es el motor de
+  // login/sesión. Opcional: un Usuario puede existir en el negocio antes de
+  // tener credenciales, y si se borra el registro de auth el Usuario sobrevive.
+  authUserId          String?        @unique @map("auth_user_id")
   estado              EstadoGenerico @default(ACTIVO)
   ultimoAccesoAt      DateTime?      @map("ultimo_acceso_at") @db.Timestamptz(6)
   createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -233,6 +237,7 @@ model Usuario {
   compania Compania? @relation(fields: [companiaId], references: [id])
   rol      Rol       @relation(fields: [rolCodigo], references: [codigo])
   oficina  Oficina?  @relation(fields: [oficinaId], references: [id])
+  authUser User?     @relation(fields: [authUserId], references: [id], onDelete: SetNull)
 
   usuarioOficinas          UsuarioOficina[]
   usuarioCanales           UsuarioCanal[]
@@ -567,4 +572,75 @@ model Auditoria {
   @@index([tabla, registroId, ocurridoAt])
   @@index([usuarioId, ocurridoAt])
   @@map("auditoria")
+}
+
+// =====================================================================
+// MÓDULO: AUTENTICACIÓN (better-auth)
+// =====================================================================
+// Estas tablas las administra better-auth. Son el motor de login/sesión;
+// el modelo de negocio vive en Usuario y se enlaza vía Usuario.authUserId.
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  // Contraparte de negocio. Ver Usuario.authUserId.
+  usuario Usuario?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
 }
