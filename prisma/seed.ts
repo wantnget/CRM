@@ -83,6 +83,7 @@ const ADMIN_GENERAL: SeedUsuario = {
 };
 
 const USUARIOS: SeedUsuario[] = [
+  { email: "hcardps@wantnget.com.co", nombres: "Harold", apellidos: "Cardoso", numeroIdentificacion: "00000011", rolCodigo: "DIRECTOR", oficina: null, telefono: "+573022988434" },
   { email: "dorjuela@wantnget.com.co", nombres: "Daniel", apellidos: "Orjuela", numeroIdentificacion: "00000002", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000002" },
   { email: "amunoz@wantnget.com.co", nombres: "Andrés", apellidos: "Muñoz", numeroIdentificacion: "00000003", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000003" },
   { email: "pperez@wantnget.com.co", nombres: "Pedro", apellidos: "Perez", numeroIdentificacion: "10125142", rolCodigo: "DIRECTOR", oficina: null, telefono: "+570000000004" },
@@ -107,6 +108,52 @@ const OFICINAS_POR_LIDER = [
   { lider: "mmartinez@wantnget.com.co", oficinas: ["NORTE"] },
   { lider: "ccaceres@wantnget.com.co", oficinas: ["SUR"] },
 ];
+
+const ASOCIADOS = [
+  { identificacion: "90000001", nombre: "Carlos Ramírez", oficina: "NORTE" },
+  { identificacion: "90000002", nombre: "Luisa Gómez", oficina: "NORTE" },
+  { identificacion: "90000003", nombre: "Jorge Torres", oficina: "SUR" },
+  { identificacion: "90000004", nombre: "Marcela Duarte", oficina: "SUR" },
+] as const;
+
+type ProductoDemo = {
+  codigo: (typeof PRODUCTOS)[number]["codigo"];
+  ventaCantidad?: number;
+  ventaMonto?: number;
+  presupuestoCantidad?: number;
+  presupuestoMonto?: number;
+};
+
+/**
+ * Números de venta y presupuesto por producto, para que Consulta General
+ * (Resultados Comerciales/Embudo) tenga algo que mostrar. `ventaCantidad` y
+ * `presupuestoCantidad` aplican a productos UNIDADES; `*Monto` a MONTO.
+ */
+const PRODUCTOS_DEMO: ProductoDemo[] = [
+  { codigo: "AFILIACION", ventaCantidad: 7, presupuestoCantidad: 14 },
+  { codigo: "COLOCACION", ventaMonto: 17_000_000, presupuestoMonto: 79_000_000 },
+  { codigo: "CUENTA_AHORRO", ventaCantidad: 8, presupuestoCantidad: 15 },
+  { codigo: "AHORRO_PROGRAMADO", ventaCantidad: 4, presupuestoCantidad: 11 },
+  { codigo: "CDAT", ventaMonto: 2_500_000, presupuestoMonto: 13_900_000 },
+  { codigo: "SEGUROS", ventaCantidad: 6, presupuestoCantidad: 8 },
+  { codigo: "SERVICIOS", ventaCantidad: 9, presupuestoCantidad: 9 },
+];
+
+/** Una oportunidad en cada etapa del embudo, por producto. */
+const ETAPAS_DEMO = [
+  { estado: "PROSPECCION", etapa: "CONTACTO", resultadoCierre: null },
+  { estado: "PROSPECCION", etapa: "OFERTA", resultadoCierre: null },
+  { estado: "PROSPECCION", etapa: "OFERTA", resultadoCierre: null },
+  { estado: "CERRADO", etapa: "CIERRE", resultadoCierre: "VENTA" },
+  { estado: "CERRADO", etapa: "CIERRE", resultadoCierre: "NO_VENTA" },
+] as const;
+
+function periodoActual(): string {
+  // America/Bogota es UTC-5 fijo, igual que en periodoVigenteDb (page-header.tsx).
+  const local = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const mes = String(local.getUTCMonth() + 1).padStart(2, "0");
+  return `${local.getUTCFullYear()}-${mes}`;
+}
 
 function telefonoDe(usuario: SeedUsuario) {
   const overridePhone = process.env.SEED_OTP_PHONE;
@@ -204,7 +251,12 @@ async function main() {
   for (const usuario of USUARIOS) {
     const registro = await prisma.usuario.upsert({
       where: { email: usuario.email },
-      update: { telefonoWhatsapp: telefonoDe(usuario) },
+      update: {
+        telefonoWhatsapp: telefonoDe(usuario),
+        rolCodigo: usuario.rolCodigo,
+        companiaId: compania.id,
+        oficinaId: usuario.oficina ? oficinas.get(usuario.oficina) : null,
+      },
       create: {
         companiaId: compania.id,
         email: usuario.email,
@@ -278,6 +330,122 @@ async function main() {
 
   console.log(
     `Compañía ${compania.razonSocial}: ${oficinas.size} oficinas, ${usuarios.size} usuarios, ${ASIGNACIONES_GESTOR_LIDER.length} asignaciones`,
+  );
+
+  // 7. Asociados de demostración, para tener a quién abrirles oportunidades.
+  const asociados = new Map<string, string>();
+  for (const asociado of ASOCIADOS) {
+    const registro = await prisma.asociado.upsert({
+      where: {
+        companiaId_numeroIdentificacion: {
+          companiaId: compania.id,
+          numeroIdentificacion: asociado.identificacion,
+        },
+      },
+      update: { nombreCompleto: asociado.nombre, oficinaId: oficinas.get(asociado.oficina)! },
+      create: {
+        companiaId: compania.id,
+        numeroIdentificacion: asociado.identificacion,
+        nombreCompleto: asociado.nombre,
+        oficinaId: oficinas.get(asociado.oficina)!,
+        createdBy: adminGeneral.id,
+      },
+    });
+    asociados.set(asociado.identificacion, registro.id);
+  }
+
+  const asociadosPorOficina = new Map<string, string[]>();
+  for (const asociado of ASOCIADOS) {
+    const lista = asociadosPorOficina.get(asociado.oficina) ?? [];
+    lista.push(asociados.get(asociado.identificacion)!);
+    asociadosPorOficina.set(asociado.oficina, lista);
+  }
+
+  // 8. Oportunidades y metas de demostración, para que Consulta General tenga
+  // números reales. La oportunidad no tiene llave de negocio para upsert, así
+  // que se reemplazan en cada corrida; hoy nada más escribe en esta tabla
+  // porque Prospección todavía no existe.
+  const periodo = periodoActual();
+  const gestoresDemo = USUARIOS.filter((usuario) => usuario.rolCodigo === "GESTOR");
+
+  await prisma.oportunidad.deleteMany({ where: { companiaId: compania.id, periodo } });
+
+  let totalOportunidades = 0;
+  for (const [productoIndex, productoDemo] of PRODUCTOS_DEMO.entries()) {
+    for (let i = 0; i < ETAPAS_DEMO.length; i++) {
+      const paso = ETAPAS_DEMO[i];
+      // Se corre el índice por producto para que la venta y la no-venta no
+      // caigan siempre en el mismo gestor: así los filtros de Líder/Gestor
+      // muestran números distintos entre sí en más de un producto.
+      const gestor = gestoresDemo[(i + productoIndex) % gestoresDemo.length];
+      const liderEmail = ASIGNACIONES_GESTOR_LIDER.find((a) => a.gestor === gestor.email)!.lider;
+      const asociadosOficina = asociadosPorOficina.get(gestor.oficina!)!;
+      const esVenta = paso.resultadoCierre === "VENTA";
+
+      await prisma.oportunidad.create({
+        data: {
+          companiaId: compania.id,
+          asociadoId: asociadosOficina[i % asociadosOficina.length],
+          productoCodigo: productoDemo.codigo,
+          gestorId: usuarios.get(gestor.email)!,
+          liderId: usuarios.get(liderEmail)!,
+          oficinaId: oficinas.get(gestor.oficina!)!,
+          estado: paso.estado,
+          etapa: paso.etapa,
+          resultadoCierre: paso.resultadoCierre,
+          cantidad: esVenta ? (productoDemo.ventaCantidad ?? null) : null,
+          monto: esVenta ? (productoDemo.ventaMonto ?? null) : null,
+          fechaApertura: new Date(),
+          fechaCierre: paso.estado === "CERRADO" ? new Date() : null,
+          periodo,
+          createdBy: adminGeneral.id,
+        },
+      });
+      totalOportunidades++;
+    }
+
+    for (const gestor of gestoresDemo) {
+      const liderEmail = ASIGNACIONES_GESTOR_LIDER.find((a) => a.gestor === gestor.email)!.lider;
+
+      await prisma.meta.upsert({
+        where: {
+          companiaId_periodo_usuarioId_productoCodigo: {
+            companiaId: compania.id,
+            periodo,
+            usuarioId: usuarios.get(gestor.email)!,
+            productoCodigo: productoDemo.codigo,
+          },
+        },
+        update: {
+          metaCantidad: productoDemo.presupuestoCantidad
+            ? Math.round(productoDemo.presupuestoCantidad / gestoresDemo.length)
+            : null,
+          metaMonto: productoDemo.presupuestoMonto
+            ? Math.round(productoDemo.presupuestoMonto / gestoresDemo.length)
+            : null,
+          liderId: usuarios.get(liderEmail)!,
+        },
+        create: {
+          companiaId: compania.id,
+          periodo,
+          rolObjetivo: "GESTOR",
+          usuarioId: usuarios.get(gestor.email)!,
+          liderId: usuarios.get(liderEmail)!,
+          productoCodigo: productoDemo.codigo,
+          metaCantidad: productoDemo.presupuestoCantidad
+            ? Math.round(productoDemo.presupuestoCantidad / gestoresDemo.length)
+            : null,
+          metaMonto: productoDemo.presupuestoMonto
+            ? Math.round(productoDemo.presupuestoMonto / gestoresDemo.length)
+            : null,
+          createdBy: adminGeneral.id,
+        },
+      });
+    }
+  }
+
+  console.log(
+    `Datos comerciales (${periodo}): ${asociados.size} asociados, ${totalOportunidades} oportunidades, ${PRODUCTOS_DEMO.length * gestoresDemo.length} metas`,
   );
 
   const telefonoPruebas = process.env.SEED_OTP_PHONE;

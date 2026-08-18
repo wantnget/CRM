@@ -6,19 +6,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FilaExpandible } from "@/components/tabla/fila-expandible";
 import { cn } from "@/lib/utils";
 
 /**
  * Tabla genérica dirigida por definición de columnas.
  *
- * Solo la usan las pantallas que son tablas de verdad (Compañías, Usuarios).
- * Consulta y la Bandeja de prospección comparten el `Panel` pero tienen su
- * propio cuerpo, porque son un gráfico y una lista filtrable.
+ * Solo la usan las pantallas que son tablas de verdad (Compañías, Usuarios,
+ * Metas). Consulta y la Bandeja de prospección comparten el `Panel` pero
+ * tienen su propio cuerpo, porque son un gráfico y una lista filtrable.
  *
  * `celda` devuelve ReactNode a propósito: así la tabla no necesita conocer los
  * tipos de celda. La celda de dos líneas de Usuarios, el badge de rol, el grupo
  * de píldoras de canales y los botones de acción los define la página, y no hay
  * que tocar este componente cuando aparezca una celda nueva.
+ *
+ * Este componente se queda como Server Component a propósito: `celda` y
+ * `expandible` son funciones, y un Server Component no puede pasarle
+ * funciones a un Client Component. Por eso el toggle vive en `FilaExpandible`
+ * (aparte, "use client"), que recibe el resultado ya renderizado.
  */
 
 export type Alineacion = "izquierda" | "centro" | "derecha";
@@ -42,6 +48,12 @@ type DataTableProps<T> = {
   claveFila: (fila: T) => string;
   /** Guía de estilo: "estado vacío con texto gris centrado" (CRM.docx §2). */
   vacio?: React.ReactNode;
+  /**
+   * Si se define, cada fila lleva un chevron que despliega este contenido
+   * debajo (p. ej. el detalle por producto de una meta). Opcional porque la
+   * mayoría de tablas del prototipo no lo necesitan.
+   */
+  expandible?: (fila: T) => React.ReactNode;
 };
 
 const CLASES_ALINEACION: Record<Alineacion, string> = {
@@ -59,11 +71,13 @@ export function DataTable<T>({
   filas,
   claveFila,
   vacio = "No hay registros para mostrar.",
+  expandible,
 }: DataTableProps<T>) {
   return (
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
+          {expandible ? <TableHead className="w-10 px-3" /> : null}
           {columnas.map((columna) => (
             <TableHead
               key={columna.id}
@@ -84,29 +98,36 @@ export function DataTable<T>({
         {filas.length === 0 ? (
           <TableRow className="hover:bg-transparent">
             <TableCell
-              colSpan={columnas.length}
+              colSpan={columnas.length + (expandible ? 1 : 0)}
               className="px-5 py-12 text-center text-sm text-muted-foreground"
             >
               {vacio}
             </TableCell>
           </TableRow>
         ) : (
-          filas.map((fila) => (
-            <TableRow key={claveFila(fila)}>
-              {columnas.map((columna) => (
-                <TableCell
-                  key={columna.id}
-                  className={cn(
-                    "px-5 py-4 align-middle",
-                    alinear(columna.alineacion),
-                    columna.claseCelda,
-                  )}
-                >
-                  {columna.celda(fila)}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))
+          filas.map((fila) => {
+            const celdas = columnas.map((columna) => (
+              <TableCell
+                key={columna.id}
+                className={cn(
+                  "px-5 py-4 align-middle",
+                  alinear(columna.alineacion),
+                  columna.claseCelda,
+                )}
+              >
+                {columna.celda(fila)}
+              </TableCell>
+            ));
+
+            return (
+              <FilaExpandible
+                key={claveFila(fila)}
+                celdas={celdas}
+                detalle={expandible ? expandible(fila) : undefined}
+                colSpanTotal={columnas.length + (expandible ? 1 : 0)}
+              />
+            );
+          })
         )}
       </TableBody>
     </Table>

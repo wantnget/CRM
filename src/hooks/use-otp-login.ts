@@ -23,6 +23,7 @@ export function useOtpLogin() {
   const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
   const [phoneHint, setPhoneHint] = useState<string | null>(null);
+  const [sentAt, setSentAt] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -67,6 +68,7 @@ export function useOtpLogin() {
 
       setEmail(parsed.data.email);
       setStep("otp");
+      setSentAt(Date.now());
 
       try {
         const response = await fetch("/api/otp/phone-hint", {
@@ -112,10 +114,15 @@ export function useOtpLogin() {
     });
   }
 
+  function resendCode() {
+    sendCode({ email });
+  }
+
   function reset() {
     setStep("email");
     setEmail("");
     setPhoneHint(null);
+    setSentAt(null);
     setError(null);
     setFieldErrors({});
   }
@@ -124,7 +131,9 @@ export function useOtpLogin() {
     step,
     email,
     phoneHint,
+    sentAt,
     sendCode,
+    resendCode,
     verifyCode,
     reset,
     isPending,
