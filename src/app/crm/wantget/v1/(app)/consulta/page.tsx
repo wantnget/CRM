@@ -30,14 +30,17 @@ export default async function ConsultaPage({ searchParams }: ConsultaPageProps) 
   const titulo =
     itemActivo(contexto.rol.codigo, ruta)?.etiqueta ?? "Consulta";
 
-  if (contexto.rol.codigo !== "DIRECTOR" || !contexto.compania) {
+  const esDirector = contexto.rol.codigo === "DIRECTOR";
+  const esLider = contexto.rol.codigo === "LIDER";
+
+  if ((!esDirector && !esLider) || !contexto.compania) {
     return (
       <>
         <PageHeader contexto={contexto} titulo={titulo} />
         <div className="px-8 py-8">
           <ModuloPendiente
-            referencia="CRM.docx §6.2, §7.2 · RN-55 a RN-57"
-            pendiente="Consulta Líder y Consulta Gestor: mismo dashboard de Consulta General, con el alcance de datos limitado a la oficina o a la gestión propia."
+            referencia="CRM.docx §7.2 · RN-55 a RN-57"
+            pendiente="Consulta Gestor: mismo dashboard, con el alcance limitado a la gestión propia."
           />
         </div>
       </>
@@ -45,24 +48,28 @@ export default async function ConsultaPage({ searchParams }: ConsultaPageProps) 
   }
 
   const params = await searchParams;
+  // Un Líder no elige de qué líder es el equipo: es siempre el suyo. El
+  // query param "lider" solo tiene efecto para el Director.
   const filtro: FiltroConsulta = {
-    liderId: idDeFiltro(params.lider),
+    liderId: esLider ? contexto.usuario.id : idDeFiltro(params.lider),
     gestorId: idDeFiltro(params.gestor),
   };
   const periodo = periodoVigenteDb();
   const companiaId = contexto.compania.id;
 
   const [opciones, resultados, datosEmbudo] = await Promise.all([
-    opcionesFiltro(companiaId),
+    opcionesFiltro(companiaId, esLider ? contexto.usuario.id : undefined),
     resultadosComerciales(companiaId, filtro, periodo),
     embudo(companiaId, filtro, periodo),
   ]);
 
   const alcance = filtro.gestorId
     ? (opciones.gestores.find((g) => g.id === filtro.gestorId)?.nombre ?? "Gestor")
-    : filtro.liderId
-      ? (opciones.lideres.find((l) => l.id === filtro.liderId)?.nombre ?? "Líder")
-      : "Consolidado compañía";
+    : esLider
+      ? `Equipo de ${contexto.usuario.nombreCompleto}`
+      : filtro.liderId
+        ? (opciones.lideres.find((l) => l.id === filtro.liderId)?.nombre ?? "Líder")
+        : "Consolidado compañía";
 
   return (
     <>
@@ -71,7 +78,7 @@ export default async function ConsultaPage({ searchParams }: ConsultaPageProps) 
         <ConsultaGeneral
           basePath={ruta}
           opciones={opciones}
-          liderId={filtro.liderId}
+          liderId={esLider ? undefined : filtro.liderId}
           gestorId={filtro.gestorId}
           alcance={alcance}
           resultados={resultados}

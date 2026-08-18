@@ -77,22 +77,24 @@ export function FiltrosConsulta({
           Filtros
         </span>
 
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          Líder
-          <Select value={liderSeleccionado} onValueChange={alCambiarLider}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos</SelectItem>
-              {opciones.lideres.map((lider) => (
-                <SelectItem key={lider.id} value={lider.id}>
-                  {lider.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
+        {opciones.lideres.length > 0 ? (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Líder
+            <Select value={liderSeleccionado} onValueChange={alCambiarLider}>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos</SelectItem>
+                {opciones.lideres.map((lider) => (
+                  <SelectItem key={lider.id} value={lider.id}>
+                    {lider.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        ) : null}
 
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Gestor

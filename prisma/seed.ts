@@ -83,7 +83,7 @@ const ADMIN_GENERAL: SeedUsuario = {
 };
 
 const USUARIOS: SeedUsuario[] = [
-  { email: "hcardps@wantnget.com.co", nombres: "Harold", apellidos: "Cardoso", numeroIdentificacion: "00000011", rolCodigo: "DIRECTOR", oficina: null, telefono: "+573022988434" },
+  { email: "hcardps@wantnget.com.co", nombres: "Harold", apellidos: "Cardoso", numeroIdentificacion: "00000011", rolCodigo: "LIDER", oficina: "NORTE", telefono: "+573022988434" },
   { email: "dorjuela@wantnget.com.co", nombres: "Daniel", apellidos: "Orjuela", numeroIdentificacion: "00000002", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000002" },
   { email: "amunoz@wantnget.com.co", nombres: "Andrés", apellidos: "Muñoz", numeroIdentificacion: "00000003", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000003" },
   { email: "pperez@wantnget.com.co", nombres: "Pedro", apellidos: "Perez", numeroIdentificacion: "10125142", rolCodigo: "DIRECTOR", oficina: null, telefono: "+570000000004" },
@@ -95,10 +95,14 @@ const USUARIOS: SeedUsuario[] = [
   { email: "dgonzalez@wantnget.com.co", nombres: "Diana", apellidos: "Gonzalez", numeroIdentificacion: "21457963", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+570000000010", canales: { WA_SALIDA: false, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
 ];
 
-/** Derivado de `datos_semilla.asignacion_gestor_lider` (hojas Ventas y Metas). */
+/**
+ * Derivado de `datos_semilla.asignacion_gestor_lider` (hojas Ventas y Metas),
+ * salvo NORTE: se corrió a hcardps (usuario de pruebas) para poder entrar
+ * como Líder y ver un equipo con datos reales.
+ */
 const ASIGNACIONES_GESTOR_LIDER = [
-  { gestor: "dgonzalez@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
-  { gestor: "pjimenez@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
+  { gestor: "dgonzalez@wantnget.com.co", lider: "hcardps@wantnget.com.co" },
+  { gestor: "pjimenez@wantnget.com.co", lider: "hcardps@wantnget.com.co" },
   { gestor: "prubio@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
   { gestor: "sramirez@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
 ];
@@ -106,6 +110,7 @@ const ASIGNACIONES_GESTOR_LIDER = [
 /** RN-14: en los datos de referencia cada Líder tiene una sola oficina. */
 const OFICINAS_POR_LIDER = [
   { lider: "mmartinez@wantnget.com.co", oficinas: ["NORTE"] },
+  { lider: "hcardps@wantnget.com.co", oficinas: ["NORTE"] },
   { lider: "ccaceres@wantnget.com.co", oficinas: ["SUR"] },
 ];
 

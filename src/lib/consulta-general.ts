@@ -19,15 +19,32 @@ function nombreCompleto(usuario: { nombres: string; apellidos: string }) {
   return `${usuario.nombres} ${usuario.apellidos}`;
 }
 
-export async function opcionesFiltro(companiaId: string): Promise<OpcionesFiltro> {
+/**
+ * `soloLiderId` acota las opciones al equipo de ese líder (rol LIDER): no
+ * tiene sentido ofrecerle el selector de Líder ni los gestores de otros
+ * equipos si su vista ya está fija a los suyos.
+ */
+export async function opcionesFiltro(
+  companiaId: string,
+  soloLiderId?: string,
+): Promise<OpcionesFiltro> {
   const [lideres, gestores] = await Promise.all([
+    soloLiderId
+      ? Promise.resolve([])
+      : prisma.usuario.findMany({
+          where: { companiaId, rolCodigo: "LIDER", estado: "ACTIVO" },
+          select: { id: true, nombres: true, apellidos: true },
+          orderBy: { nombres: "asc" },
+        }),
     prisma.usuario.findMany({
-      where: { companiaId, rolCodigo: "LIDER", estado: "ACTIVO" },
-      select: { id: true, nombres: true, apellidos: true },
-      orderBy: { nombres: "asc" },
-    }),
-    prisma.usuario.findMany({
-      where: { companiaId, rolCodigo: "GESTOR", estado: "ACTIVO" },
+      where: {
+        companiaId,
+        rolCodigo: "GESTOR",
+        estado: "ACTIVO",
+        ...(soloLiderId
+          ? { comoGestorAsignaciones: { some: { liderId: soloLiderId, vigenteHasta: null } } }
+          : {}),
+      },
       select: {
         id: true,
         nombres: true,
@@ -55,17 +72,18 @@ export async function opcionesFiltro(companiaId: string): Promise<OpcionesFiltro
   };
 }
 
+// Ambos filtros se combinan con AND (no gestor-anula-líder): un LIDER trae
+// liderId fijo a su propio id, y si además elige un gestor, el resultado debe
+// seguir cumpliendo las dos condiciones. Con "gestor gana" un query armado a
+// mano (?gestor=<id-de-otro-equipo>) se saltaría el alcance del líder.
 function alcanceOportunidad(
   companiaId: string,
   filtro: FiltroConsulta,
 ): Prisma.OportunidadWhereInput {
   return {
     companiaId,
-    ...(filtro.gestorId
-      ? { gestorId: filtro.gestorId }
-      : filtro.liderId
-        ? { liderId: filtro.liderId }
-        : {}),
+    ...(filtro.liderId ? { liderId: filtro.liderId } : {}),
+    ...(filtro.gestorId ? { gestorId: filtro.gestorId } : {}),
   };
 }
 
@@ -73,11 +91,8 @@ function alcanceMeta(companiaId: string, filtro: FiltroConsulta): Prisma.MetaWhe
   return {
     companiaId,
     rolObjetivo: "GESTOR",
-    ...(filtro.gestorId
-      ? { usuarioId: filtro.gestorId }
-      : filtro.liderId
-        ? { liderId: filtro.liderId }
-        : {}),
+    ...(filtro.liderId ? { liderId: filtro.liderId } : {}),
+    ...(filtro.gestorId ? { usuarioId: filtro.gestorId } : {}),
   };
 }
 
