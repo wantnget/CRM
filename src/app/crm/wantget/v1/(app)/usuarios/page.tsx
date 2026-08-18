@@ -42,7 +42,7 @@ export default async function UsuariosPage() {
 
   const companiaId = contexto.compania.id;
 
-  const [usuarios, oficinas] = await Promise.all([
+  const [usuarios, oficinas, lideres] = await Promise.all([
     prisma.usuario.findMany({
       // Aislamiento multi-tenant. Mientras no exista la RLS que pide el spec,
       // este filtro es la única barrera: sin él una Admin de Compañía vería los
@@ -60,6 +60,14 @@ export default async function UsuariosPage() {
         oficina: { select: { id: true, nombre: true } },
         usuarioCanales: { select: { canalCodigo: true, habilitado: true } },
         usuarioOficinas: { select: { oficinaId: true } },
+        // Líder vigente del Gestor: la fila abierta de asignacion_gestor_lider
+        // (RN-19, un único líder vigente por fecha).
+        comoGestorAsignaciones: {
+          where: { vigenteHasta: null },
+          select: { liderId: true },
+          orderBy: { vigenteDesde: "desc" },
+          take: 1,
+        },
       },
       // Los inactivos también se listan: no hay borrado físico (RN-06), así que
       // filtrarlos dejaría sin forma de reactivarlos.
@@ -73,6 +81,13 @@ export default async function UsuariosPage() {
       where: { companiaId, estado: "ACTIVO" },
       select: { id: true, nombre: true },
       orderBy: { nombre: "asc" },
+    }),
+    // Candidatos a líder de un Gestor: solo LIDER activos de la compañía
+    // (RN-20).
+    prisma.usuario.findMany({
+      where: { companiaId, rolCodigo: "LIDER", estado: "ACTIVO" },
+      select: { id: true, nombres: true, apellidos: true },
+      orderBy: [{ apellidos: "asc" }, { nombres: "asc" }],
     }),
   ]);
 
@@ -89,6 +104,7 @@ export default async function UsuariosPage() {
     oficinaId: u.oficina?.id ?? null,
     oficinaNombre: u.oficina?.nombre ?? null,
     oficinasIds: u.usuarioOficinas.map((uo) => uo.oficinaId),
+    liderId: u.comoGestorAsignaciones[0]?.liderId ?? null,
     canales: u.usuarioCanales,
   }));
 
@@ -97,7 +113,14 @@ export default async function UsuariosPage() {
       <PageHeader contexto={contexto} titulo="Usuarios" />
 
       <div className="px-8 py-8">
-        <UsuariosPanel usuarios={filas} oficinas={oficinas} />
+        <UsuariosPanel
+          usuarios={filas}
+          oficinas={oficinas}
+          lideres={lideres.map((l) => ({
+            id: l.id,
+            nombre: `${l.nombres} ${l.apellidos}`,
+          }))}
+        />
       </div>
     </>
   );

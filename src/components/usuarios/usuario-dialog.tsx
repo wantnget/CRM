@@ -32,6 +32,7 @@ import {
  */
 
 export type OficinaOpcion = { id: string; nombre: string };
+export type LiderOpcion = { id: string; nombre: string };
 
 export type UsuarioEditable = {
   id: string;
@@ -43,6 +44,8 @@ export type UsuarioEditable = {
   rolCodigo: string;
   oficinaId: string | null;
   oficinasIds: string[];
+  /** Líder vigente del Gestor. Null si no tiene o si no es Gestor. */
+  liderId: string | null;
 };
 
 const ETIQUETA_ROL: Record<string, string> = {
@@ -60,6 +63,7 @@ type Estado = {
   rolCodigo: string;
   oficinaId: string;
   oficinasIds: string[];
+  liderId: string;
 };
 
 const VACIO: Estado = {
@@ -71,6 +75,7 @@ const VACIO: Estado = {
   rolCodigo: "GESTOR",
   oficinaId: "",
   oficinasIds: [],
+  liderId: "",
 };
 
 function desde(usuario: UsuarioEditable): Estado {
@@ -83,6 +88,7 @@ function desde(usuario: UsuarioEditable): Estado {
     rolCodigo: usuario.rolCodigo,
     oficinaId: usuario.oficinaId ?? "",
     oficinasIds: usuario.oficinasIds,
+    liderId: usuario.liderId ?? "",
   };
 }
 
@@ -124,11 +130,13 @@ export function UsuarioDialog({
   onCerrar,
   usuario,
   oficinas,
+  lideres,
 }: {
   onCerrar: () => void;
   /** `null` = alta. Con valor = edición. */
   usuario: UsuarioEditable | null;
   oficinas: OficinaOpcion[];
+  lideres: LiderOpcion[];
 }) {
   const idBase = useId();
   const [datos, setDatos] = useState<Estado>(() =>
@@ -169,6 +177,7 @@ export function UsuarioDialog({
         rolCodigo: datos.rolCodigo,
         oficinaId: datos.rolCodigo === "GESTOR" ? datos.oficinaId || null : null,
         oficinasIds: datos.rolCodigo === "LIDER" ? datos.oficinasIds : [],
+        liderId: datos.rolCodigo === "GESTOR" ? datos.liderId || null : null,
       };
 
       const resultado: ResultadoAccion = editando
@@ -301,6 +310,33 @@ export function UsuarioDialog({
                     </option>
                   ))}
                 </select>
+              </Campo>
+            ) : null}
+
+            {/* RN-19 / RN-20: el Gestor tiene un Líder vigente, y es lo que lo
+                hace aparecer en la Consulta de ese Líder. La asignación se
+                guarda en asignacion_gestor_lider con su vigencia. */}
+            {datos.rolCodigo === "GESTOR" ? (
+              <Campo etiqueta="Líder asignado" error={errores.liderId}>
+                {lideres.length === 0 ? (
+                  <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-sm text-amber-800">
+                    No hay Líderes activos en la compañía. Crea primero un
+                    usuario con rol Líder para poder asignarle este Gestor.
+                  </p>
+                ) : (
+                  <select
+                    className={CLASE_CAMPO}
+                    value={datos.liderId}
+                    onChange={(e) => cambiar("liderId", e.target.value)}
+                  >
+                    <option value="">Selecciona un Líder</option>
+                    {lideres.map((lider) => (
+                      <option key={lider.id} value={lider.id}>
+                        {lider.nombre}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </Campo>
             ) : null}
 

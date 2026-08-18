@@ -65,6 +65,11 @@ const camposComunes = {
   oficinaId: uuid.nullish(),
   /** Oficinas del LIDER (relación N:M). Vacío para los demás roles. */
   oficinasIds: z.array(uuid).default([]),
+  /**
+   * Líder a cargo del GESTOR (tabla asignacion_gestor_lider, módulo IDENTIDAD
+   * del spec). Nulo para los demás roles.
+   */
+  liderId: uuid.nullish(),
 };
 
 /**
@@ -75,6 +80,7 @@ function validarOficinas(
     rolCodigo: RolAsignable;
     oficinaId?: string | null;
     oficinasIds: string[];
+    liderId?: string | null;
   },
   ctx: z.RefinementCtx,
 ) {
@@ -83,6 +89,18 @@ function validarOficinas(
       code: "custom",
       path: ["oficinaId"],
       message: "El Gestor debe tener una oficina asignada",
+    });
+  }
+
+  // RN-19 / RN-20: el Gestor tiene un Líder vigente, y es lo que hace que
+  // aparezca en la Consulta de ese Líder. Se exige al alta para no dejar
+  // gestores huérfanos; el orden natural de creación es Director, Líder y
+  // después Gestores.
+  if (datos.rolCodigo === "GESTOR" && !datos.liderId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["liderId"],
+      message: "El Gestor debe tener un Líder asignado",
     });
   }
 

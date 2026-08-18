@@ -142,6 +142,89 @@ function errorDeDuplicado(error: unknown): ResultadoAccion | null {
   return { ok: false, mensaje: "El registro duplica un valor único." };
 }
 
+/**
+ * Fecha de hoy en Bogotá, normalizada a medianoche UTC para una columna date.
+ * Sin esto, un cambio hecho después de las 19:00 local caería en el día
+ * siguiente, porque Colombia es UTC-5.
+ */
+function hoyEnBogota(): Date {
+  const ahora = new Date();
+  const local = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  return new Date(
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()),
+  );
+}
+
+/** El líder debe ser un LIDER activo de la misma compañía (RN-20). */
+async function liderValido(companiaId: string, liderId: string) {
+  const encontrado = await prisma.usuario.count({
+    where: { id: liderId, companiaId, rolCodigo: "LIDER", estado: "ACTIVO" },
+  });
+  return encontrado === 1;
+}
+
+/**
+ * Deja al gestor con un único líder vigente (RN-19).
+ *
+ * vigente_hasta se maneja como límite exclusivo: la asignación anterior se
+ * cierra con la misma fecha en que arranca la nueva, así no hay solapamiento.
+ * Si el cambio ocurre el mismo día en que empezó la vigente, se corrige en el
+ * lugar para no dejar rangos de duración cero.
+ *
+ * Devuelve null cuando no hubo cambio.
+ */
+async function reasignarLider(
+  tx: Prisma.TransactionClient,
+  ctx: Contexto,
+  gestorId: string,
+  liderId: string | null,
+) {
+  const vigente = await tx.asignacionGestorLider.findFirst({
+    where: { gestorId, vigenteHasta: null },
+    orderBy: { vigenteDesde: "desc" },
+  });
+
+  if (!liderId) {
+    // Dejó de ser Gestor: se cierra la vigencia y no se abre otra.
+    if (!vigente) return null;
+    await tx.asignacionGestorLider.update({
+      where: { id: vigente.id },
+      data: { vigenteHasta: hoyEnBogota() },
+    });
+    return { anterior: vigente.liderId, nuevo: null };
+  }
+
+  if (vigente?.liderId === liderId) return null;
+
+  const hoy = hoyEnBogota();
+
+  if (vigente) {
+    if (vigente.vigenteDesde.getTime() === hoy.getTime()) {
+      await tx.asignacionGestorLider.update({
+        where: { id: vigente.id },
+        data: { liderId },
+      });
+      return { anterior: vigente.liderId, nuevo: liderId };
+    }
+    await tx.asignacionGestorLider.update({
+      where: { id: vigente.id },
+      data: { vigenteHasta: hoy },
+    });
+  }
+
+  await tx.asignacionGestorLider.create({
+    data: {
+      companiaId: ctx.companiaId,
+      gestorId,
+      liderId,
+      vigenteDesde: hoy,
+      createdBy: ctx.usuarioId,
+    },
+  });
+
+  return { anterior: vigente?.liderId ?? null, nuevo: liderId };
+}
+
 /** Las oficinas referenciadas deben pertenecer a la compañía de quien administra. */
 async function oficinasValidas(companiaId: string, ids: string[]) {
   if (ids.length === 0) return true;
@@ -173,6 +256,18 @@ export async function crearUsuario(entrada: unknown): Promise<ResultadoAccion> {
   ];
   if (!(await oficinasValidas(ctx.companiaId, referenciadas))) {
     return { ok: false, mensaje: "La oficina seleccionada no es válida." };
+  }
+
+  if (
+    datos.rolCodigo === "GESTOR" &&
+    datos.liderId &&
+    !(await liderValido(ctx.companiaId, datos.liderId))
+  ) {
+    return {
+      ok: false,
+      mensaje: "El líder seleccionado no es válido.",
+      errores: { liderId: "Selecciona un Líder activo de la compañía" },
+    };
   }
 
   try {
@@ -215,6 +310,19 @@ export async function crearUsuario(entrada: unknown): Promise<ResultadoAccion> {
         });
       }
 
+      // RN-19 / RN-20: el Gestor arranca con su Líder vigente.
+      if (datos.rolCodigo === "GESTOR" && datos.liderId) {
+        await tx.asignacionGestorLider.create({
+          data: {
+            companiaId: ctx.companiaId,
+            gestorId: creado.id,
+            liderId: datos.liderId,
+            vigenteDesde: hoyEnBogota(),
+            createdBy: ctx.usuarioId,
+          },
+        });
+      }
+
       await registrarAuditoria(tx, {
         tabla: "usuario",
         registroId: creado.id,
@@ -230,6 +338,7 @@ export async function crearUsuario(entrada: unknown): Promise<ResultadoAccion> {
           telefonoWhatsapp: creado.telefonoWhatsapp,
           rolCodigo: creado.rolCodigo,
           oficinaId: creado.oficinaId,
+          liderId: datos.rolCodigo === "GESTOR" ? datos.liderId : null,
           estado: creado.estado,
         },
       });
@@ -290,6 +399,27 @@ export async function actualizarUsuario(
     return { ok: false, mensaje: "La oficina seleccionada no es válida." };
   }
 
+  if (
+    datos.rolCodigo === "GESTOR" &&
+    datos.liderId &&
+    !(await liderValido(ctx.companiaId, datos.liderId))
+  ) {
+    return {
+      ok: false,
+      mensaje: "El líder seleccionado no es válido.",
+      errores: { liderId: "Selecciona un Líder activo de la compañía" },
+    };
+  }
+
+  // Nadie puede ser su propio líder.
+  if (datos.rolCodigo === "GESTOR" && datos.liderId === actual.id) {
+    return {
+      ok: false,
+      mensaje: "Un usuario no puede ser su propio líder.",
+      errores: { liderId: "Selecciona otro Líder" },
+    };
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       const actualizado = await tx.usuario.update({
@@ -347,6 +477,28 @@ export async function actualizarUsuario(
         }
       } else {
         await tx.usuarioOficina.deleteMany({ where: { usuarioId: actual.id } });
+      }
+
+      // Al dejar de ser Gestor se cierra la vigencia; si sigue siéndolo, se
+      // reasigna solo cuando el líder cambió.
+      const cambioDeLider = await reasignarLider(
+        tx,
+        ctx,
+        actual.id,
+        datos.rolCodigo === "GESTOR" ? (datos.liderId ?? null) : null,
+      );
+
+      if (cambioDeLider) {
+        await registrarAuditoria(tx, {
+          tabla: "asignacion_gestor_lider",
+          registroId: actual.id,
+          operacion: "UPDATE",
+          usuarioId: ctx.usuarioId,
+          companiaId: ctx.companiaId,
+          ip: ctx.ip,
+          valoresAnteriores: { liderId: cambioDeLider.anterior },
+          valoresNuevos: { liderId: cambioDeLider.nuevo },
+        });
       }
 
       await registrarAuditoria(tx, {

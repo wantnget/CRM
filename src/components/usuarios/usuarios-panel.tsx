@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
+import { Confirmacion } from "@/components/confirmacion";
 import { Panel } from "@/components/panel";
 import { DataTable, type Columna } from "@/components/tabla/data-table";
 import { EstadoPill, type Estado } from "@/components/tabla/estado-pill";
@@ -9,6 +10,7 @@ import { RolBadge } from "@/components/tabla/rol-badge";
 import { CanalesToggle } from "@/components/usuarios/canales-toggle";
 import {
   UsuarioDialog,
+  type LiderOpcion,
   type OficinaOpcion,
   type UsuarioEditable,
 } from "@/components/usuarios/usuario-dialog";
@@ -38,6 +40,7 @@ export type FilaUsuario = {
   oficinaId: string | null;
   oficinaNombre: string | null;
   oficinasIds: string[];
+  liderId: string | null;
   canales: { canalCodigo: string; habilitado: boolean }[];
 };
 
@@ -57,7 +60,10 @@ function AccionesUsuario({
   onEditar: () => void;
 }) {
   const [pendiente, iniciar] = useTransition();
+  const [confirmando, setConfirmando] = useState(false);
   const editable = administrableAqui(fila.rolCodigo);
+  const activo = fila.estado === "ACTIVO";
+  const nombre = `${fila.nombres} ${fila.apellidos}`;
 
   const motivo = editable
     ? undefined
@@ -79,26 +85,43 @@ function AccionesUsuario({
         type="button"
         disabled={!editable || pendiente}
         title={motivo}
-        onClick={() => {
-          const accion = fila.estado === "ACTIVO" ? "inactivar" : "activar";
-          if (
-            !window.confirm(
-              `¿Confirmas ${accion} a ${fila.nombres} ${fila.apellidos}?`,
-            )
-          ) {
-            return;
-          }
-          iniciar(async () => {
-            await cambiarEstadoUsuario(fila.id);
-          });
-        }}
+        onClick={() => setConfirmando(true)}
         className={cn(
           BASE_BOTON,
           "border-want-rojo/40 text-want-rojo hover:bg-want-rojo/5",
         )}
       >
-        {fila.estado === "ACTIVO" ? "Inactivar" : "Activar"}
+        {activo ? "Inactivar" : "Activar"}
       </button>
+
+      <Confirmacion
+        abierto={confirmando}
+        peligroso={activo}
+        pendiente={pendiente}
+        titulo={activo ? "Inactivar usuario" : "Activar usuario"}
+        textoConfirmar={activo ? "Inactivar" : "Activar"}
+        descripcion={
+          activo ? (
+            <>
+              <strong className="text-foreground">{nombre}</strong> no podrá
+              iniciar sesión ni recibir códigos de verificación. El usuario no se
+              elimina: puedes volver a activarlo cuando quieras.
+            </>
+          ) : (
+            <>
+              <strong className="text-foreground">{nombre}</strong> volverá a
+              tener acceso a la plataforma.
+            </>
+          )
+        }
+        onCancelar={() => setConfirmando(false)}
+        onConfirmar={() =>
+          iniciar(async () => {
+            await cambiarEstadoUsuario(fila.id);
+            setConfirmando(false);
+          })
+        }
+      />
     </div>
   );
 }
@@ -106,9 +129,11 @@ function AccionesUsuario({
 export function UsuariosPanel({
   usuarios,
   oficinas,
+  lideres,
 }: {
   usuarios: FilaUsuario[];
   oficinas: OficinaOpcion[];
+  lideres: LiderOpcion[];
 }) {
   const [abierto, setAbierto] = useState(false);
   const [enEdicion, setEnEdicion] = useState<UsuarioEditable | null>(null);
@@ -129,6 +154,7 @@ export function UsuariosPanel({
       rolCodigo: fila.rolCodigo,
       oficinaId: fila.oficinaId,
       oficinasIds: fila.oficinasIds,
+      liderId: fila.liderId,
     });
     setAbierto(true);
   }
@@ -236,6 +262,8 @@ export function UsuariosPanel({
           onCerrar={() => setAbierto(false)}
           usuario={enEdicion}
           oficinas={oficinas}
+          // El propio usuario no puede figurar como su líder.
+          lideres={lideres.filter((l) => l.id !== enEdicion?.id)}
         />
       ) : null}
     </>
