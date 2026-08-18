@@ -1,5 +1,11 @@
 import "dotenv/config";
 import { prisma } from "@/lib/prisma";
+import {
+  DOMINIO,
+  METAS,
+  VENTAS,
+  type VentaReferencia,
+} from "./datos-comerciales";
 
 /**
  * Semilla derivada de public/docs/estructura_bd_crm.json:
@@ -152,6 +158,139 @@ async function seedCatalogos() {
   );
 }
 
+/**
+ * Datos comerciales de referencia: asociados, oportunidades y metas del Excel
+ * "Base de Datos Ventas y Pagos" (hoja Ventas y hoja Metas).
+ *
+ * Son los que alimentan el dashboard de Resultados Comerciales. Se borran y
+ * recrean en cada corrida para que un cambio en datos-comerciales.ts se refleje;
+ * el veto al DELETE del spec (RN-01, RN-33) aplica a la aplicación, no a la
+ * siembra del ambiente de desarrollo.
+ */
+async function seedComercial(
+  companiaId: string,
+  adminGeneralId: string,
+  usuarios: Map<string, string>,
+  oficinas: Map<string, string>,
+) {
+  const idDe = (prefijo: string) => {
+    const id = usuarios.get(`${prefijo}${DOMINIO}`);
+    if (!id) throw new Error(`no encontre al usuario ${prefijo}${DOMINIO}`);
+    return id;
+  };
+
+  // Unidad de medida por producto: decide si el valor va a cantidad o a monto.
+  const productos = await prisma.producto.findMany({
+    select: { codigo: true, unidadMedida: true },
+  });
+  const unidad = new Map(productos.map((p) => [p.codigo, p.unidadMedida]));
+
+  // 1. Asociados. El Excel no trae teléfono ni correo (INC-02 del spec), así
+  //    que quedan nulos: ambas columnas son opcionales.
+  const asociados = new Map<string, string>();
+  for (const venta of VENTAS) {
+    if (asociados.has(venta.numeroIdentificacion)) continue;
+    const registro = await prisma.asociado.upsert({
+      where: {
+        companiaId_numeroIdentificacion: {
+          companiaId,
+          numeroIdentificacion: venta.numeroIdentificacion,
+        },
+      },
+      update: { nombreCompleto: venta.nombreAsociado },
+      create: {
+        companiaId,
+        numeroIdentificacion: venta.numeroIdentificacion,
+        nombreCompleto: venta.nombreAsociado,
+        oficinaId: oficinas.get(venta.oficinaCodigo)!,
+        origen: "CARGUE",
+        createdBy: adminGeneralId,
+      },
+    });
+    asociados.set(venta.numeroIdentificacion, registro.id);
+  }
+
+  // 2. Oportunidades: una fila de la hoja Ventas es una oportunidad.
+  await prisma.oportunidad.deleteMany({ where: { companiaId } });
+
+  const valorDe = (venta: VentaReferencia) => {
+    if (venta.valor === null) return { cantidad: null, monto: null };
+    return unidad.get(venta.productoCodigo) === "MONTO"
+      ? { cantidad: null, monto: venta.valor }
+      : { cantidad: venta.valor, monto: null };
+  };
+
+  for (const venta of VENTAS) {
+    const fecha = new Date(`${venta.fecha}T12:00:00Z`);
+    const cerrada = venta.etapa === "CIERRE";
+
+    await prisma.oportunidad.create({
+      data: {
+        companiaId,
+        asociadoId: asociados.get(venta.numeroIdentificacion)!,
+        productoCodigo: venta.productoCodigo,
+        gestorId: idDe(venta.gestor),
+        // Denormalizados a propósito: congelan la atribución histórica.
+        liderId: idDe(venta.lider),
+        oficinaId: oficinas.get(venta.oficinaCodigo)!,
+        estado: venta.estado,
+        etapa: venta.etapa,
+        resultadoCierre: venta.resultadoCierre,
+        ...valorDe(venta),
+        fechaApertura: fecha,
+        fechaUltimaGestion: fecha,
+        fechaCierre: cerrada ? fecha : null,
+        periodo: venta.fecha.slice(0, 7),
+        createdBy: adminGeneralId,
+      },
+    });
+  }
+
+  // 3. Metas. El líder que trae la hoja se ignora (INC-07): las 28 filas dicen
+  //    lo mismo y contradice a la hoja Ventas. Se resuelve desde la asignación
+  //    vigente, que es lo que indica el spec.
+  for (const meta of METAS) {
+    const gestorId = idDe(meta.gestor);
+    const asignacion = await prisma.asignacionGestorLider.findFirst({
+      where: { gestorId, vigenteHasta: null },
+      select: { liderId: true },
+    });
+
+    const esMonto = unidad.get(meta.productoCodigo) === "MONTO";
+
+    await prisma.meta.upsert({
+      where: {
+        companiaId_periodo_usuarioId_productoCodigo: {
+          companiaId,
+          periodo: meta.periodo,
+          usuarioId: gestorId,
+          productoCodigo: meta.productoCodigo,
+        },
+      },
+      update: {
+        metaCantidad: esMonto ? null : meta.meta,
+        metaMonto: esMonto ? meta.meta : null,
+        liderId: asignacion?.liderId ?? null,
+      },
+      create: {
+        companiaId,
+        periodo: meta.periodo,
+        rolObjetivo: "GESTOR",
+        usuarioId: gestorId,
+        liderId: asignacion?.liderId ?? null,
+        productoCodigo: meta.productoCodigo,
+        metaCantidad: esMonto ? null : meta.meta,
+        metaMonto: esMonto ? meta.meta : null,
+        createdBy: adminGeneralId,
+      },
+    });
+  }
+
+  console.log(
+    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ${METAS.length} metas`,
+  );
+}
+
 async function main() {
   await seedCatalogos();
 
@@ -279,6 +418,10 @@ async function main() {
   console.log(
     `Compañía ${compania.razonSocial}: ${oficinas.size} oficinas, ${usuarios.size} usuarios, ${ASIGNACIONES_GESTOR_LIDER.length} asignaciones`,
   );
+
+  // 7. Datos comerciales de referencia. Va al final porque depende de los
+  //    usuarios y las oficinas, y las metas necesitan las asignaciones.
+  await seedComercial(compania.id, adminGeneral.id, usuarios, oficinas);
 
   const telefonoPruebas = process.env.SEED_OTP_PHONE;
   const soloUno = process.env.SEED_OTP_EMAIL;
