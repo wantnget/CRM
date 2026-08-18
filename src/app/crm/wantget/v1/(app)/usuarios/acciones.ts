@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { obtenerContextoUsuario } from "@/lib/contexto-usuario";
+import { Prisma } from "@/generated/prisma/client";
 import { ipDeLaSolicitud, registrarAuditoria } from "@/lib/auditoria";
+import { mapearDuplicado } from "@/lib/errores-prisma";
 import { BASE_CRM } from "@/lib/navegacion";
 import {
   esquemaActualizarUsuario,
@@ -85,61 +86,34 @@ function erroresDeZod(error: z.ZodError): Record<string, string> {
 }
 
 /**
- * Nombre de la restricción única que se violó.
+ * Traduce la violación de índice único a un mensaje por campo.
  *
- * Con driver adapter, Prisma 7 no pobla `meta.target`: deja el error original
- * de Postgres en `meta.driverAdapterError.cause.originalMessage`, cuyo texto
- * está localizado pero incluye el nombre de la restricción. Se buscan las dos
- * fuentes para no depender de una sola.
+ * El nombre de la restricción se resuelve en lib/errores-prisma.ts, que
+ * contempla que Prisma 7 con driver adapter no pobla meta.target.
  */
-function restriccionViolada(
-  error: Prisma.PrismaClientKnownRequestError,
-): string {
-  const meta = error.meta as
-    | {
-        target?: unknown;
-        driverAdapterError?: { cause?: { originalMessage?: unknown } };
-      }
-    | undefined;
-
-  return [
-    Array.isArray(meta?.target) ? meta.target.join(",") : String(meta?.target ?? ""),
-    String(meta?.driverAdapterError?.cause?.originalMessage ?? ""),
-    error.message,
-  ].join(" | ");
-}
-
-/** Traduce la violación de índice único a un mensaje por campo. */
 function errorDeDuplicado(error: unknown): ResultadoAccion | null {
-  if (
-    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-    error.code !== "P2002"
-  ) {
-    return null;
-  }
-
-  const objetivo = restriccionViolada(error);
-
-  // usuario_compania_id_numero_identificacion_key se evalúa primero: el otro
-  // nombre, usuario_email_key, no contiene "numero_identificacion".
-  if (objetivo.includes("numero_identificacion")) {
-    return {
-      ok: false,
-      mensaje: "Esa identificación ya está registrada en la compañía.",
-      errores: {
-        numeroIdentificacion: "Ya existe un usuario con esta identificación",
+  return mapearDuplicado<ResultadoAccion>(error, [
+    // Primero el más específico: usuario_email_key no contiene esta clave.
+    [
+      "numero_identificacion",
+      {
+        ok: false,
+        mensaje: "Esa identificación ya está registrada en la compañía.",
+        errores: {
+          numeroIdentificacion: "Ya existe un usuario con esta identificación",
+        },
       },
-    };
-  }
-
-  if (objetivo.includes("email")) {
-    return {
-      ok: false,
-      mensaje: "Ese correo ya está registrado.",
-      errores: { email: "Ya existe un usuario con este correo" },
-    };
-  }
-  return { ok: false, mensaje: "El registro duplica un valor único." };
+    ],
+    [
+      "email",
+      {
+        ok: false,
+        mensaje: "Ese correo ya está registrado.",
+        errores: { email: "Ya existe un usuario con este correo" },
+      },
+    ],
+    ["", { ok: false, mensaje: "El registro duplica un valor único." }],
+  ]);
 }
 
 /**

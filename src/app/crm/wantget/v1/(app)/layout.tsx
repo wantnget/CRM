@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SessionWatcher } from "@/components/layout/session-watcher";
 import { obtenerContextoUsuario } from "@/lib/contexto-usuario";
@@ -31,6 +32,8 @@ export default async function AppLayout({
         {children}
       </SidebarInset>
       <SessionWatcher />
+      {/* RN-02: crear o editar confirma con un mensaje. */}
+      <Toaster position="bottom-right" richColors closeButton />
     </SidebarProvider>
   );
 }

@@ -55,6 +55,19 @@ const telefonoWhatsapp = z
 
 const uuid = z.string().uuid("Selección inválida");
 
+/**
+ * Reglas de los campos que también necesita el alta de una compañía, cuando
+ * crea a sus dos Administradores de Compañía. Se comparten en vez de repetirse
+ * para que una sola definición gobierne el formato en toda la aplicación.
+ */
+export const camposUsuario = {
+  email,
+  numeroIdentificacion,
+  nombres,
+  apellidos,
+  telefonoWhatsapp,
+};
+
 const camposComunes = {
   nombres,
   apellidos,
