@@ -21,12 +21,15 @@ export default async function AppLayout({
   if (!contexto) redirect(RUTA_SIGN_IN);
 
   return (
-    // Sin clases de altura: SidebarProvider ya trae min-h-svh y
-    // tailwind-merge lo eliminaria al recibir cualquier otra min-h-*, que es
-    // lo que hacia que el fondo del sidebar se cortara a media pagina.
-    <SidebarProvider>
+    // Shell de altura fija. h-svh le da al contenedor una altura definida
+    // (min-h-svh sola no alcanza: el h-full del sidebar resuelve a auto contra
+    // un padre sin height). Con esto el sidebar queda anclado al viewport, con
+    // su pie visible, y el scroll del contenido vive en el SidebarInset.
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar contexto={contexto} />
-      <SidebarInset className="bg-want-fondo">{children}</SidebarInset>
+      <SidebarInset className="min-h-0 overflow-y-auto bg-want-fondo">
+        {children}
+      </SidebarInset>
       <SessionWatcher />
     </SidebarProvider>
   );
