@@ -10,9 +10,14 @@ import { prisma } from "@/lib/prisma";
  * TELÉFONOS: el spec registra en INC-01 que las fuentes no traen el teléfono de
  * WhatsApp de los usuarios, pero `telefono_whatsapp` es obligatorio porque sin
  * él el OTP no es implementable. Los valores de abajo son PLACEHOLDERS en
- * formato E.164 y no reciben mensajes. Para probar el login de punta a punta,
- * define SEED_OTP_EMAIL y SEED_OTP_PHONE en .env y ese usuario quedará con tu
- * número real, sin que quede versionado en el repositorio.
+ * formato E.164 y no reciben mensajes.
+ *
+ * Para probar el login, define en .env (no se versiona):
+ *
+ *   SEED_OTP_PHONE                   tu número se aplica a los 10 usuarios, así
+ *                                    se alterna de rol cerrando sesión y
+ *                                    entrando con otro correo
+ *   SEED_OTP_PHONE + SEED_OTP_EMAIL  solo ese usuario queda con tu número
  */
 
 const ROLES = [
@@ -104,13 +109,17 @@ const OFICINAS_POR_LIDER = [
 ];
 
 function telefonoDe(usuario: SeedUsuario) {
-  const overrideEmail = process.env.SEED_OTP_EMAIL?.toLowerCase();
   const overridePhone = process.env.SEED_OTP_PHONE;
+  if (!overridePhone) return usuario.telefono;
 
-  if (overrideEmail && overridePhone && usuario.email === overrideEmail) {
-    return overridePhone;
-  }
-  return usuario.telefono;
+  const overrideEmail = process.env.SEED_OTP_EMAIL?.toLowerCase();
+
+  // Sin SEED_OTP_EMAIL el número va a todos los usuarios del seed: es lo que
+  // permite alternar de rol solo cerrando sesión y entrando con otro correo,
+  // sin editar .env ni volver a sembrar.
+  if (!overrideEmail) return overridePhone;
+
+  return usuario.email === overrideEmail ? overridePhone : usuario.telefono;
 }
 
 async function seedCatalogos() {
@@ -149,7 +158,9 @@ async function main() {
   // 1. ADMIN_GENERAL primero: no tiene compañía y es el creador de todo.
   const adminGeneral = await prisma.usuario.upsert({
     where: { email: ADMIN_GENERAL.email },
-    update: {},
+    // El telefono tambien se refresca en las re-corridas, igual que el de los
+    // demas usuarios: si no, este quedaba con el placeholder para siempre.
+    update: { telefonoWhatsapp: telefonoDe(ADMIN_GENERAL) },
     create: {
       email: ADMIN_GENERAL.email,
       nombres: ADMIN_GENERAL.nombres,
@@ -269,10 +280,24 @@ async function main() {
     `Compañía ${compania.razonSocial}: ${oficinas.size} oficinas, ${usuarios.size} usuarios, ${ASIGNACIONES_GESTOR_LIDER.length} asignaciones`,
   );
 
-  if (!process.env.SEED_OTP_EMAIL || !process.env.SEED_OTP_PHONE) {
+  const telefonoPruebas = process.env.SEED_OTP_PHONE;
+  const soloUno = process.env.SEED_OTP_EMAIL;
+
+  if (!telefonoPruebas) {
     console.log(
-      "\nAviso: todos los teléfonos son placeholders y no reciben WhatsApp.\n" +
-        "Define SEED_OTP_EMAIL y SEED_OTP_PHONE en .env para probar el login real.",
+      "\nAviso: todos los teléfonos son placeholders y no reciben WhatsApp." +
+        "\nDefine SEED_OTP_PHONE en .env para probar el login real.",
+    );
+  } else if (soloUno) {
+    console.log(
+      "\nTeléfono de pruebas aplicado solo a " +
+        soloUno +
+        ".\nQuita SEED_OTP_EMAIL para aplicarlo a los 10 y poder alternar de rol.",
+    );
+  } else {
+    console.log(
+      "\nTeléfono de pruebas aplicado a los 10 usuarios: se puede entrar con" +
+        "\ncualquiera de los correos y el código llega al mismo WhatsApp.",
     );
   }
 }
