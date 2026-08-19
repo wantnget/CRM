@@ -36,6 +36,12 @@ export type ItemNavegacion = {
    * un control de seguridad.
    */
   fase2?: boolean;
+  /**
+   * Sub-ítems que se despliegan en acordeón bajo este ítem (p. ej.
+   * "Comunicación" → Email / WhatsApp). Un ítem con `subitems` no tiene `href`
+   * navegable propio: el acordeón solo expande o colapsa.
+   */
+  subitems?: ItemNavegacion[];
 };
 
 export type GrupoNavegacion = {
@@ -129,6 +135,19 @@ export const NAVEGACION: Record<RolCodigo, GrupoNavegacion[]> = {
       titulo: "Negociación",
       items: [{ etiqueta: "Prospección", href: `${BASE_CRM}/prospeccion` }],
     },
+    {
+      titulo: "Comunicación",
+      items: [
+        {
+          etiqueta: "Comunicación",
+          href: `${BASE_CRM}/comunicacion`,
+          subitems: [
+            { etiqueta: "Email", href: `${BASE_CRM}/comunicacion/email` },
+            { etiqueta: "WhatsApp", href: `${BASE_CRM}/comunicacion/whatsapp` },
+          ],
+        },
+      ],
+    },
   ],
 
   /**
@@ -147,9 +166,19 @@ export function gruposDeRol(rol: RolCodigo): GrupoNavegacion[] {
   return NAVEGACION[rol];
 }
 
-/** Todos los ítems del rol, sin agrupar. */
+/**
+ * Un ítem y, si tiene, sus sub-ítems, aplanados. El padre de un acordeón
+ * (p. ej. "Comunicación") no es una ruta navegable por sí mismo, solo el
+ * contenedor que despliega sus sub-ítems: se excluye de la lista plana y solo
+ * quedan los hijos, que sí tienen página propia.
+ */
+function conSubitems(item: ItemNavegacion): ItemNavegacion[] {
+  return item.subitems ? item.subitems : [item];
+}
+
+/** Todos los ítems del rol, sin agrupar (incluye sub-ítems de acordeón). */
 export function itemsDeRol(rol: RolCodigo): ItemNavegacion[] {
-  return NAVEGACION[rol].flatMap((grupo) => grupo.items);
+  return NAVEGACION[rol].flatMap((grupo) => grupo.items.flatMap(conSubitems));
 }
 
 /** Ítems a los que el rol puede entrar de verdad (excluye fase 2). */

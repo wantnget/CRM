@@ -19,6 +19,7 @@ export type DetalleProspeccion = {
   asociadoId: string;
   asociadoNombre: string;
   asociadoIdentificacion: string;
+  asociadoTelefono: string | null;
   oficinaNombre: string;
   productoCodigo: string;
   productoNombre: string;
@@ -55,7 +56,13 @@ export async function obtenerDetalle({
       resultadoCierre: true,
       fechaApertura: true,
       fechaUltimaGestion: true,
-      asociado: { select: { nombreCompleto: true, numeroIdentificacion: true } },
+      asociado: {
+        select: {
+          nombreCompleto: true,
+          numeroIdentificacion: true,
+          telefonoWhatsapp: true,
+        },
+      },
       oficina: { select: { nombre: true } },
       producto: { select: { nombre: true, unidadMedida: true } },
     },
@@ -71,6 +78,7 @@ export async function obtenerDetalle({
     asociadoId: fila.asociadoId,
     asociadoNombre: fila.asociado.nombreCompleto,
     asociadoIdentificacion: fila.asociado.numeroIdentificacion,
+    asociadoTelefono: fila.asociado.telefonoWhatsapp,
     oficinaNombre: fila.oficina.nombre,
     productoCodigo: fila.productoCodigo,
     productoNombre: fila.producto.nombre,

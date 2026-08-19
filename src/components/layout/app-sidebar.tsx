@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +16,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useLogout } from "@/hooks/use-logout";
@@ -33,10 +37,35 @@ function estaActivo(pathname: string, item: ItemNavegacion) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
+function tieneActivo(pathname: string, item: ItemNavegacion): boolean {
+  return (item.subitems ?? []).some((hijo) => estaActivo(pathname, hijo));
+}
+
 export function AppSidebar({ contexto }: { contexto: ContextoUsuario }) {
   const pathname = usePathname();
   const { logout, isPending } = useLogout();
   const grupos = gruposDeRol(contexto.rol.codigo);
+
+  // Ítems de acordeón expandidos por su href. Uno con la ruta activa dentro
+  // arranca abierto para que el usuario vea dónde está parado.
+  const [abiertos, setAbiertos] = useState<Set<string>>(
+    () =>
+      new Set(
+        grupos
+          .flatMap((g) => g.items)
+          .filter((item) => item.subitems && tieneActivo(pathname, item))
+          .map((item) => item.href),
+      ),
+  );
+
+  function alternar(href: string) {
+    setAbiertos((prev) => {
+      const siguiente = new Set(prev);
+      if (siguiente.has(href)) siguiente.delete(href);
+      else siguiente.add(href);
+      return siguiente;
+    });
+  }
 
   // El prototipo muestra la oficina para los roles con alcance de oficina y la
   // razón social para los demás. ADMIN_GENERAL opera fuera de toda compañía
@@ -80,6 +109,59 @@ export function AppSidebar({ contexto }: { contexto: ContextoUsuario }) {
               <SidebarMenu>
                 {grupo.items.map((item) => {
                   const activo = estaActivo(pathname, item);
+
+                  // Ítem de acordeón: no navega por sí mismo, solo despliega
+                  // sus sub-ítems (p. ej. "Comunicación" → Email / WhatsApp).
+                  if (item.subitems) {
+                    const abierto = abiertos.has(item.href);
+                    const activoPorHijo = tieneActivo(pathname, item);
+
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          type="button"
+                          aria-expanded={abierto}
+                          onClick={() => alternar(item.href)}
+                          className={cn(
+                            "h-auto py-2 pl-3 font-medium",
+                            activoPorHijo &&
+                              "text-want-navy hover:text-want-navy",
+                          )}
+                        >
+                          <span className="flex-1 whitespace-normal text-left">
+                            {item.etiqueta}
+                          </span>
+                          <ChevronDown
+                            aria-hidden
+                            className={cn(
+                              "size-4 shrink-0 transition-transform",
+                              abierto && "rotate-180",
+                            )}
+                          />
+                        </SidebarMenuButton>
+
+                        {abierto ? (
+                          <SidebarMenuSub>
+                            {item.subitems.map((hijo) => {
+                              const hijoActivo = estaActivo(pathname, hijo);
+                              return (
+                                <SidebarMenuSubItem key={hijo.href}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={hijoActivo}
+                                  >
+                                    <Link href={hijo.href}>
+                                      {hijo.etiqueta}
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        ) : null}
+                      </SidebarMenuItem>
+                    );
+                  }
 
                   // Fase 2: se ve, no navega. El bloqueo real está en
                   // puedeAcceder() y en que la ruta no existe.
