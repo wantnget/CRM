@@ -1,5 +1,4 @@
 import { PageHeader, periodoVigente } from "@/components/layout/page-header";
-import { ModuloPendiente } from "@/components/layout/modulo-pendiente";
 import { Panel } from "@/components/panel";
 import {
   NavegacionConsulta,
@@ -9,6 +8,7 @@ import {
   type Rango,
 } from "@/components/consulta/navegacion-consulta";
 import { ResultadosComerciales } from "@/components/consulta/resultados-comerciales";
+import { EmbudoProspeccion } from "@/components/consulta/embudo-prospeccion";
 import { exigirAcceso } from "@/lib/autorizacion";
 import { BASE_CRM, itemActivo } from "@/lib/navegacion";
 import { nombrePeriodo } from "@/lib/formato";
@@ -17,6 +17,7 @@ import {
   type AlcanceResultados,
   type RangoPeriodo,
 } from "@/lib/consultas/resultados";
+import { obtenerEmbudo } from "@/lib/consultas/embudo";
 import type { ContextoUsuario } from "@/lib/contexto-usuario";
 
 /**
@@ -95,32 +96,48 @@ export default async function ConsultaPage({
     );
   }
 
+  const rangoConsulta: RangoPeriodo =
+    rango === "mes"
+      ? { tipo: "mes", periodo }
+      : { tipo: "anio", anio: anioActual };
+
+  const navegacion = (
+    <NavegacionConsulta
+      base={RUTA}
+      titulo="Resultados Comerciales"
+      pestana={pestana}
+      rango={rango}
+      periodo={periodo}
+      anio={anioActual}
+    />
+  );
+
+  const alcanceTexto =
+    rango === "mes" ? `de ${nombrePeriodo(periodo)}` : `de ${anioActual}`;
+
   if (pestana === "embudo") {
+    const embudo = await obtenerEmbudo(alcance, rangoConsulta);
+
     return (
       <>
         <PageHeader contexto={contexto} titulo={titulo} />
+
         <div className="px-8 py-8">
-          <NavegacionConsulta
-            base={RUTA}
-            titulo="Resultados Comerciales"
-            pestana={pestana}
-            rango={rango}
-            periodo={periodo}
-            anio={anioActual}
-          />
-          <ModuloPendiente
-            referencia="No definido en CRM.docx ni en la matriz de visibilidad"
-            pendiente="El Embudo aparece en el prototipo pero no está en la especificación funcional. Falta definir qué métricas muestra y con qué alcance por rol."
+          {navegacion}
+
+          <p className="mb-4 text-sm text-muted-foreground">
+            Distribución por etapa de todas las oportunidades {alcanceTexto},
+            abiertas y cerradas.
+          </p>
+
+          <EmbudoProspeccion
+            embudo={embudo}
+            contexto={contextoDe(contexto)}
           />
         </div>
       </>
     );
   }
-
-  const rangoConsulta: RangoPeriodo =
-    rango === "mes"
-      ? { tipo: "mes", periodo }
-      : { tipo: "anio", anio: anioActual };
 
   const resultados = await obtenerResultados(alcance, rangoConsulta);
 
@@ -129,14 +146,7 @@ export default async function ConsultaPage({
       <PageHeader contexto={contexto} titulo={titulo} />
 
       <div className="px-8 py-8">
-        <NavegacionConsulta
-          base={RUTA}
-          titulo="Resultados Comerciales"
-          pestana={pestana}
-          rango={rango}
-          periodo={periodo}
-          anio={anioActual}
-        />
+        {navegacion}
 
         <p className="mb-4 text-sm text-muted-foreground">
           {rango === "mes"

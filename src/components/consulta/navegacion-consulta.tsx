@@ -85,40 +85,39 @@ export function NavegacionConsulta({
         </span>
       </nav>
 
-      {pestana === "resultados" ? (
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Rango
-          </span>
+      {/* El rango aplica a las dos pestañas: ambas leen del mismo periodo. */}
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+          Rango
+        </span>
 
-          <div className="inline-flex rounded-lg border border-border p-0.5">
-            <Link
-              href={enlace(base, { tab: pestana, rango: "mes" })}
-              aria-current={rango === "mes" ? "true" : undefined}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition",
-                rango === "mes"
-                  ? "bg-want-navy text-white"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Mes {formatearPeriodo(periodo)}
-            </Link>
-            <Link
-              href={enlace(base, { tab: pestana, rango: "anio" })}
-              aria-current={rango === "anio" ? "true" : undefined}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition",
-                rango === "anio"
-                  ? "bg-want-navy text-white"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Acumulado {anio}
-            </Link>
-          </div>
+        <div className="inline-flex rounded-lg border border-border p-0.5">
+          <Link
+            href={enlace(base, { tab: pestana, rango: "mes" })}
+            aria-current={rango === "mes" ? "true" : undefined}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition",
+              rango === "mes"
+                ? "bg-want-navy text-white"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Mes {formatearPeriodo(periodo)}
+          </Link>
+          <Link
+            href={enlace(base, { tab: pestana, rango: "anio" })}
+            aria-current={rango === "anio" ? "true" : undefined}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition",
+              rango === "anio"
+                ? "bg-want-navy text-white"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Acumulado {anio}
+          </Link>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

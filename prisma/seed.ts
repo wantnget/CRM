@@ -286,8 +286,40 @@ async function seedComercial(
     });
   }
 
+  // 4. Asignaciones de asociados a gestores.
+  //
+  // RN-32 exige que el Gestor solo prospecte asociados que le haya asignado su
+  // Líder, pero el Excel no trae esa asignación: es la brecha INC-03 del spec,
+  // que señala que CRM.docx no describe la pantalla donde el Líder asigna.
+  //
+  // Se derivan de las oportunidades ya cargadas —cada una dice qué asociado
+  // trabajó qué gestor— y el líder que asigna sale de la asignación vigente.
+  // Es dato de desarrollo: no reemplaza a la pantalla del Líder.
+  await prisma.asignacionAsociado.deleteMany({ where: { companiaId } });
+
+  const asignadas = new Set<string>();
+  for (const venta of VENTAS) {
+    const asociadoId = asociados.get(venta.numeroIdentificacion)!;
+    const gestorId = idDe(venta.gestor);
+    const clave = `${asociadoId}|${gestorId}`;
+    if (asignadas.has(clave)) continue;
+    asignadas.add(clave);
+
+    await prisma.asignacionAsociado.create({
+      data: {
+        companiaId,
+        asociadoId,
+        gestorId,
+        // RN-34: quien asigna es el Líder del gestor.
+        asignadoPorId: idDe(venta.lider),
+        fechaAsignacion: new Date(`${venta.fecha}T12:00:00Z`),
+        observacion: "Derivada de los datos de referencia (INC-03)",
+      },
+    });
+  }
+
   console.log(
-    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ${METAS.length} metas`,
+    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ${METAS.length} metas, ${asignadas.size} asignaciones de asociado`,
   );
 }
 

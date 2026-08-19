@@ -53,6 +53,16 @@
   --color-want-rojo: var(--want-rojo);
   --color-want-verde: var(--want-verde);
   --color-want-fondo: var(--want-fondo);
+
+  /* Etapas del embudo de prospección */
+  --color-etapa-contacto: var(--etapa-contacto);
+  --color-etapa-oferta: var(--etapa-oferta);
+  --color-etapa-venta: var(--etapa-venta);
+  --color-etapa-no-venta: var(--etapa-no-venta);
+  --color-etapa-contacto-texto: var(--etapa-contacto-texto);
+  --color-etapa-oferta-texto: var(--etapa-oferta-texto);
+  --color-etapa-venta-texto: var(--etapa-venta-texto);
+  --color-etapa-no-venta-texto: var(--etapa-no-venta-texto);
 }
 
 :root {
@@ -87,6 +97,29 @@
   --want-rojo: #dc2626;
   --want-verde: #22c55e;
   --want-fondo: #f4f6f9;
+
+  /* Etapas del embudo de prospección (CONTACTO, OFERTA, CIERRE con su
+     resultado). Paleta validada con el script de dataviz: los cuatro pasan los
+     seis chequeos y el peor par adyacente, verde contra rojo, queda en ΔE 8.6
+     bajo deuteranopia.
+
+     El verde NO es el #22c55e de la guía de estilo: junto al naranja daba ΔE 5.7
+     bajo protanopia, o sea que en la barra apilada "Oferta" y "Finaliza – Venta"
+     eran indistinguibles para daltonismo rojo-verde. Y "Contacto" no puede ser
+     gris porque no alcanza el piso de croma que exige una identidad categórica.
+
+     Las variantes *-texto son las mismas familias en un tono más oscuro, para
+     las etiquetas: el naranja de marca da 2.15:1 sobre blanco y el esmeralda
+     3.77:1, ambos por debajo del 4.5:1 que pide AA en texto pequeño. */
+  --etapa-contacto: #2563eb;
+  --etapa-oferta: var(--want-naranja);
+  --etapa-venta: #059669;
+  --etapa-no-venta: var(--want-rojo);
+
+  --etapa-contacto-texto: #2563eb;
+  --etapa-oferta-texto: #b45309;
+  --etapa-venta-texto: #047857;
+  --etapa-no-venta-texto: var(--want-rojo);
 
   /* Sidebar: superficie azul marino con acentos naranja. El estado activo NO
      usa --sidebar-accent, porque shadcn comparte ese token con :hover; se
