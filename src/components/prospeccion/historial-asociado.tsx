@@ -27,10 +27,11 @@ const ETIQUETA_ETAPA: Record<string, string> = {
   CIERRE: "Cierre",
 };
 
-/** WhatsApp y correo se distinguen por color, como en el prototipo. */
+/** WhatsApp, correo y llamada se distinguen por color, como en el prototipo. */
 const BADGE_MEDIO: Record<string, string> = {
   WHATSAPP: "bg-want-verde/10 text-emerald-700",
   EMAIL: "bg-etapa-contacto/10 text-etapa-contacto-texto",
+  TELEFONO: "bg-want-naranja/10 text-want-naranja",
 };
 
 export function HistorialAsociado({

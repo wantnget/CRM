@@ -7,6 +7,8 @@ import {
   CLASE_ETIQUETA,
   ErrorGeneral,
 } from "@/components/form/campos";
+import { LlamadaModal } from "@/components/prospeccion/llamada-modal";
+import { useSoftphone } from "@/hooks/use-softphone";
 import { cn } from "@/lib/utils";
 import { ETAPAS } from "@/lib/validaciones/prospeccion";
 import type { CanalDelGestor, DetalleProspeccion } from "@/lib/consultas/detalle";
@@ -91,7 +93,14 @@ export function CanalesGestion({
 
       {/* Se monta solo al elegir un canal, así el formulario arranca limpio en
           cada gestión sin un efecto que lo resincronice. */}
-      {canal ? (
+      {canal?.codigo === "LLAMADA" ? (
+        <FormularioLlamada
+          key={canal.codigo}
+          detalle={detalle}
+          canal={canal}
+          onCerrar={() => setCanal(null)}
+        />
+      ) : canal ? (
         <FormularioGestion
           key={canal.codigo}
           detalle={detalle}
@@ -210,4 +219,145 @@ function FormularioGestion({
       <ErrorGeneral mensaje={mensaje} />
     </form>
   );
+}
+
+/**
+ * Canal Llamada: origina la llamada por el softphone (Twilio) en vez de
+ * abrir directo el formulario de texto. El modal queda flotando mientras el
+ * gestor sigue viendo la pantalla, y solo al colgar aparece el campo de
+ * observación para registrar la gestión, con la duración ya conocida.
+ */
+function FormularioLlamada({
+  detalle,
+  canal,
+  onCerrar,
+}: {
+  detalle: DetalleProspeccion;
+  canal: CanalDelGestor;
+  onCerrar: () => void;
+}) {
+  const { estado, duracion, llamar, colgar } = useSoftphone();
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [observacion, setObservacion] = useState("");
+  const [etapa, setEtapa] = useState<string>(detalle.etapa);
+  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [enviando, iniciar] = useTransition();
+
+  function iniciarLlamada() {
+    setModalAbierto(true);
+    llamar();
+  }
+
+  function enviar(evento: React.FormEvent) {
+    evento.preventDefault();
+    setErrores({});
+    setMensaje(null);
+
+    iniciar(async () => {
+      const resultado: ResultadoAccion = await registrarGestion({
+        oportunidadId: detalle.oportunidadId,
+        canalCodigo: canal.codigo,
+        etapa,
+        observacion: `[Llamada ${formatearDuracion(duracion)}] ${observacion}`,
+      });
+
+      if (resultado.ok) {
+        onCerrar();
+        return;
+      }
+      setErrores(resultado.errores ?? {});
+      setMensaje(resultado.mensaje);
+    });
+  }
+
+  const llamadaTerminada = estado === "inactivo" || estado === "error";
+  const huboLlamada = modalAbierto;
+
+  return (
+    <div className="mt-4 space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-want-navy">
+          Registrar gestión · {canal.nombre}
+        </p>
+        <button
+          type="button"
+          onClick={onCerrar}
+          disabled={enviando}
+          className="text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      {!huboLlamada ? (
+        <button type="button" onClick={iniciarLlamada} className={BOTON_PRIMARIO}>
+          Llamar
+        </button>
+      ) : null}
+
+      {modalAbierto ? (
+        <LlamadaModal
+          estado={estado}
+          duracion={duracion}
+          destino={detalle.asociadoNombre}
+          onColgar={colgar}
+          onCerrar={() => setModalAbierto(false)}
+        />
+      ) : null}
+
+      {huboLlamada && llamadaTerminada ? (
+        <form onSubmit={enviar} className="space-y-3">
+          <div>
+            <textarea
+              aria-label="Observación de la gestión"
+              className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-want-navy focus:ring-2 focus:ring-want-navy/20"
+              placeholder="Describa el resultado de la llamada..."
+              value={observacion}
+              onChange={(evento) => setObservacion(evento.target.value)}
+              maxLength={2000}
+              autoFocus
+              required
+            />
+            {errores.observacion ? (
+              <p className="mt-1 text-xs text-want-rojo">{errores.observacion}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              aria-label="Etapa en la que se realizó la gestión"
+              className={cn(CLASE_CAMPO, "h-10 w-auto")}
+              value={etapa}
+              onChange={(evento) => setEtapa(evento.target.value)}
+            >
+              {ETAPAS.map((valor) => (
+                <option key={valor} value={valor}>
+                  Etapa: {ETIQUETA_ETAPA[valor]}
+                </option>
+              ))}
+            </select>
+
+            <button type="submit" disabled={enviando} className={BOTON_PRIMARIO}>
+              {enviando ? "Registrando..." : "Registrar gestión"}
+            </button>
+          </div>
+
+          {errores.etapa ? (
+            <p className="text-xs text-want-rojo">{errores.etapa}</p>
+          ) : null}
+
+          <ErrorGeneral mensaje={mensaje} />
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function formatearDuracion(segundos: number) {
+  const m = Math.floor(segundos / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (segundos % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
 }

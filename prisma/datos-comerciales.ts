@@ -42,7 +42,8 @@ export type MetaReferencia = {
   meta: number;
 };
 
-export const VENTAS: VentaReferencia[] = [
+/** Fiel al Excel de referencia. No editar a mano: ver comentario de archivo. */
+const VENTAS_REFERENCIA: VentaReferencia[] = [
   {
     "numeroIdentificacion": "1048519955",
     "nombreAsociado": "Tatiana Peláez Valencia",
@@ -773,7 +774,68 @@ export const VENTAS: VentaReferencia[] = [
   }
 ];
 
-export const METAS: MetaReferencia[] = [
+/**
+ * Datos de prueba para el usuario `hcardoso`, agregado al seed fuera del Excel
+ * de referencia. No representan datos reales de negocio.
+ */
+const VENTAS_HCARDOSO: VentaReferencia[] = [
+  {
+    numeroIdentificacion: "9990000001",
+    nombreAsociado: "Laura Fernanda Gómez Restrepo",
+    fecha: "2026-08-10",
+    productoCodigo: "AFILIACION",
+    valor: 1,
+    oficinaCodigo: "NORTE",
+    estado: "CERRADO",
+    etapa: "CIERRE",
+    resultadoCierre: "VENTA",
+    gestor: "hcardoso",
+    lider: "mmartinez",
+  },
+  {
+    numeroIdentificacion: "9990000002",
+    nombreAsociado: "Julián Esteban Torres Vélez",
+    fecha: "2026-08-12",
+    productoCodigo: "COLOCACION",
+    valor: 8000000,
+    oficinaCodigo: "NORTE",
+    estado: "PROSPECCION",
+    etapa: "OFERTA",
+    resultadoCierre: null,
+    gestor: "hcardoso",
+    lider: "mmartinez",
+  },
+  {
+    numeroIdentificacion: "9990000003",
+    nombreAsociado: "Camila Andrea Restrepo Ortiz",
+    fecha: "2026-08-15",
+    productoCodigo: "SEGUROS",
+    valor: null,
+    oficinaCodigo: "NORTE",
+    estado: "PROSPECCION",
+    etapa: "CONTACTO",
+    resultadoCierre: null,
+    gestor: "hcardoso",
+    lider: "mmartinez",
+  },
+  {
+    numeroIdentificacion: "9990000004",
+    nombreAsociado: "Sebastián David Molina Cano",
+    fecha: "2026-08-13",
+    productoCodigo: "CUENTA_AHORRO",
+    valor: 2,
+    oficinaCodigo: "NORTE",
+    estado: "CERRADO",
+    etapa: "CIERRE",
+    resultadoCierre: "NO_VENTA",
+    gestor: "hcardoso",
+    lider: "mmartinez",
+  },
+];
+
+export const VENTAS: VentaReferencia[] = [...VENTAS_REFERENCIA, ...VENTAS_HCARDOSO];
+
+const METAS_REFERENCIA: MetaReferencia[] = [
   {
     "gestor": "prubio",
     "productoCodigo": "AFILIACION",
@@ -943,3 +1005,13 @@ export const METAS: MetaReferencia[] = [
     "meta": 3
   }
 ];
+
+/** Metas de prueba para `hcardoso`, misma salvedad que VENTAS_HCARDOSO. */
+const METAS_HCARDOSO: MetaReferencia[] = [
+  { gestor: "hcardoso", productoCodigo: "AFILIACION", periodo: "2026-08", meta: 3 },
+  { gestor: "hcardoso", productoCodigo: "COLOCACION", periodo: "2026-08", meta: 15000000 },
+  { gestor: "hcardoso", productoCodigo: "SEGUROS", periodo: "2026-08", meta: 2 },
+  { gestor: "hcardoso", productoCodigo: "CUENTA_AHORRO", periodo: "2026-08", meta: 3 },
+];
+
+export const METAS: MetaReferencia[] = [...METAS_REFERENCIA, ...METAS_HCARDOSO];

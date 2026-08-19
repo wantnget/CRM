@@ -7,6 +7,7 @@ import { obtenerContextoUsuario } from "@/lib/contexto-usuario";
 import { ipDeLaSolicitud, registrarAuditoria } from "@/lib/auditoria";
 import { mapearDuplicado } from "@/lib/errores-prisma";
 import { BASE_CRM } from "@/lib/navegacion";
+import { enviarCorreo, enviarWhatsApp } from "@/lib/twilio";
 import type { ResultadoAccion } from "@/lib/validaciones/usuario";
 import {
   esquemaCambiarEtapa,
@@ -108,6 +109,7 @@ const SELECCION_EDICION = {
   monto: true,
   resultadoCierre: true,
   producto: { select: { unidadMedida: true } },
+  asociado: { select: { nombreCompleto: true, email: true } },
 } as const;
 
 /**
@@ -420,6 +422,15 @@ export async function registrarGestion(
     };
   }
 
+  // El correo va al email real del asociado: sin uno cargado no hay a dónde
+  // enviarlo, así que se rechaza antes de registrar la gestión.
+  if (canal.codigo === "CORREO_SALIDA" && !oportunidad.asociado.email) {
+    return {
+      ok: false,
+      mensaje: "Este asociado no tiene correo registrado.",
+    };
+  }
+
   const ahora = new Date();
 
   try {
@@ -467,6 +478,39 @@ export async function registrarGestion(
   } catch (error) {
     console.error("[registrarGestion]", error);
     return { ok: false, mensaje: "No se pudo registrar la gestión." };
+  }
+
+  // El envío va después de confirmar la gestión: si Twilio falla, la gestión ya
+  // quedó registrada (es la fuente de verdad) y solo se avisa del error de envío.
+  if (canal.codigo === "WA_SALIDA") {
+    try {
+      await enviarWhatsApp(datos.observacion);
+    } catch (error) {
+      console.error("[registrarGestion] envío WhatsApp", error);
+      revalidatePath(RUTA);
+      return {
+        ok: false,
+        mensaje:
+          "La gestión quedó registrada, pero no se pudo enviar el WhatsApp.",
+      };
+    }
+  }
+
+  if (canal.codigo === "CORREO_SALIDA") {
+    try {
+      await enviarCorreo({
+        destinatario: oportunidad.asociado.email!,
+        asunto: `Fondo Want · ${oportunidad.asociado.nombreCompleto}`,
+        cuerpo: datos.observacion,
+      });
+    } catch (error) {
+      console.error("[registrarGestion] envío correo", error);
+      revalidatePath(RUTA);
+      return {
+        ok: false,
+        mensaje: "La gestión quedó registrada, pero no se pudo enviar el correo.",
+      };
+    }
   }
 
   revalidatePath(RUTA);

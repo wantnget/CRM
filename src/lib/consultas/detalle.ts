@@ -92,8 +92,8 @@ export type ItemHistorial = {
   fechaHora: Date;
   etapa: EtapaProspeccion;
   canalNombre: string | null;
-  /** Colorea el badge del canal: WhatsApp y correo se distinguen por color. */
-  medio: "WHATSAPP" | "EMAIL" | null;
+  /** Colorea el badge del canal: WhatsApp, correo y llamada se distinguen por color. */
+  medio: "WHATSAPP" | "EMAIL" | "TELEFONO" | null;
   productoNombre: string;
   observacion: string | null;
   /** Falso cuando la gestión viene de otra prospección del mismo asociado. */

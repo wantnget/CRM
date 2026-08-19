@@ -51,6 +51,7 @@ const CANALES = [
   { codigo: "WA_ENTRADA", nombre: "WhatsApp entrada", medio: "WHATSAPP", direccion: "ENTRADA", orden: 2 },
   { codigo: "CORREO_SALIDA", nombre: "Correo salida", medio: "EMAIL", direccion: "SALIDA", orden: 3 },
   { codigo: "CORREO_ENTRADA", nombre: "Correo entrada", medio: "EMAIL", direccion: "ENTRADA", orden: 4 },
+  { codigo: "LLAMADA", nombre: "Llamada", medio: "TELEFONO", direccion: "SALIDA", orden: 5 },
 ] as const;
 
 const COMPANIA = { nit: "900100200", razonSocial: "Fondo Want" };
@@ -99,6 +100,8 @@ const USUARIOS: SeedUsuario[] = [
   { email: "sramirez@wantnget.com.co", nombres: "Silvana", apellidos: "Ramírez", numeroIdentificacion: "7415749", rolCodigo: "GESTOR", oficina: "SUR", telefono: "+570000000008", canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
   { email: "pjimenez@wantnget.com.co", nombres: "Pablo", apellidos: "Jimenez", numeroIdentificacion: "41748574", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+570000000009", canales: { WA_SALIDA: false, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
   { email: "dgonzalez@wantnget.com.co", nombres: "Diana", apellidos: "Gonzalez", numeroIdentificacion: "21457963", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+570000000010", canales: { WA_SALIDA: false, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
+  { email: "hcardoso@wantnget.com.co", nombres: "Hector", apellidos: "Cardoso", numeroIdentificacion: "21457964", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+573022988434", canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true, LLAMADA: true } },
+
 ];
 
 /** Derivado de `datos_semilla.asignacion_gestor_lider` (hojas Ventas y Metas). */
@@ -107,6 +110,8 @@ const ASIGNACIONES_GESTOR_LIDER = [
   { gestor: "pjimenez@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
   { gestor: "prubio@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
   { gestor: "sramirez@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
+  // No viene del Excel de referencia: usuario de pruebas agregado al seed.
+  { gestor: "hcardoso@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
 ];
 
 /** RN-14: en los datos de referencia cada Líder tiene una sola oficina. */
@@ -549,6 +554,24 @@ async function main() {
   // 7. Datos comerciales de referencia. Va al final porque depende de los
   //    usuarios y las oficinas, y las metas necesitan las asignaciones.
   await seedComercial(compania.id, adminGeneral.id, usuarios, oficinas);
+
+  // El Excel de referencia no trae email de asociado (INC-02), así que los
+  // asociados de prueba de hcardoso quedan sin correo. Se les asigna el
+  // EMAIL_PRUEBA_ASOCIADO para poder probar el envío real de "Correo salida".
+  const emailPrueba = process.env.EMAIL_PRUEBA_ASOCIADO;
+  if (emailPrueba) {
+    const identificacionesHcardoso = VENTAS.filter(
+      (v) => v.gestor === "hcardoso",
+    ).map((v) => v.numeroIdentificacion);
+
+    await prisma.asociado.updateMany({
+      where: {
+        companiaId: compania.id,
+        numeroIdentificacion: { in: identificacionesHcardoso },
+      },
+      data: { email: emailPrueba },
+    });
+  }
 
   const telefonoPruebas = process.env.SEED_OTP_PHONE;
   const soloUno = process.env.SEED_OTP_EMAIL;
