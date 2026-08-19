@@ -58,6 +58,7 @@ enum DireccionComunicacion {
 enum MedioComunicacion {
   WHATSAPP
   EMAIL
+  TELEFONO
 }
 
 enum TipoCierreSesion {
