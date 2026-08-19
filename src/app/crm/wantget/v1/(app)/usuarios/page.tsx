@@ -42,7 +42,7 @@ export default async function UsuariosPage() {
 
   const companiaId = contexto.compania.id;
 
-  const [usuarios, oficinas, lideres] = await Promise.all([
+  const [usuarios, oficinas, lideres, catalogoCanales] = await Promise.all([
     prisma.usuario.findMany({
       // Aislamiento multi-tenant. Mientras no exista la RLS que pide el spec,
       // este filtro es la única barrera: sin él una Admin de Compañía vería los
@@ -89,6 +89,12 @@ export default async function UsuariosPage() {
       select: { id: true, nombres: true, apellidos: true },
       orderBy: [{ apellidos: "asc" }, { nombres: "asc" }],
     }),
+
+    // El catálogo de canales manda: la lista ya no vive duplicada en el cliente.
+    prisma.canalComunicacion.findMany({
+      select: { codigo: true, nombre: true },
+      orderBy: { orden: "asc" },
+    }),
   ]);
 
   const filas: FilaUsuario[] = usuarios.map((u) => ({
@@ -105,7 +111,19 @@ export default async function UsuariosPage() {
     oficinaNombre: u.oficina?.nombre ?? null,
     oficinasIds: u.usuarioOficinas.map((uo) => uo.oficinaId),
     liderId: u.comoGestorAsignaciones[0]?.liderId ?? null,
-    canales: u.usuarioCanales,
+    // Se parte del catálogo y no de las filas del usuario: un Gestor dado de
+    // alta antes de que existiera un canal no tiene su fila, y sin esto ese
+    // canal desaparecería de su columna en vez de mostrarse inhabilitado.
+    canales: catalogoCanales.map((canal) => ({
+      canalCodigo: canal.codigo,
+      nombre: canal.nombre,
+      habilitado:
+        u.usuarioCanales.find((uc) => uc.canalCodigo === canal.codigo)
+          ?.habilitado ?? false,
+    })),
+    // Solo los Gestores tienen canales (RN-15); en los demás roles la columna
+    // muestra "No aplica", que el componente decide con esta bandera.
+    aplicanCanales: u.rol.codigo === "GESTOR",
   }));
 
   return (

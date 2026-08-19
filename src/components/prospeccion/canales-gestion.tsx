@@ -111,8 +111,7 @@ export function CanalesGestion({
 
       {detalle.cerrada ? (
         <p className="mt-3 text-xs text-muted-foreground">
-          La prospección está cerrada, así que no admite nuevas gestiones
-          (RN-38). Su historia sigue disponible abajo.
+          La prospección está cerrada, así que no admite nuevas gestiones. Su historia sigue disponible abajo.
         </p>
       ) : null}
     </section>

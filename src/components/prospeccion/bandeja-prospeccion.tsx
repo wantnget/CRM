@@ -103,10 +103,15 @@ export function BandejaProspeccion({
               key={item.oportunidadId}
               item={item}
               seleccionado={item.oportunidadId === seleccionadaId}
+              // Volver a pulsar el ítem abierto lo cierra: el enlace deja de
+              // llevar el id y el detalle vuelve al estado vacío.
               href={enlace(base, {
                 estado: filtro,
                 q: busqueda,
-                id: item.oportunidadId,
+                id:
+                  item.oportunidadId === seleccionadaId
+                    ? undefined
+                    : item.oportunidadId,
               })}
             />
           ))}

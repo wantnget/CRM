@@ -1,30 +1,31 @@
 import { ClipboardList } from "lucide-react";
-import { Panel } from "@/components/panel";
 
 /**
- * Cuadro de gestión de la prospección seleccionada (CRM.docx §7.3).
+ * Estado vacío del cuadro de gestión (CRM.docx §7.3).
  *
- * Por ahora solo el estado vacío: el detalle con las tres etapas secuenciales y
- * el historial de gestiones es la segunda parte del módulo. Se deja montado para
- * que la pantalla tenga desde ya las dos columnas del prototipo y la bandeja no
- * quede sola ocupando todo el ancho.
+ * Es lo que se ve al entrar y cada vez que se cierra una prospección. No usa
+ * Panel a propósito: en el prototipo esta tarjeta no lleva banda azul, porque
+ * no titula un contenido sino que invita a elegir uno.
  */
 export function PanelDetalle() {
   return (
-    <Panel titulo="Gestión de la prospección">
-      <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
-        <ClipboardList
+    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <span
           aria-hidden
-          className="size-8 text-muted-foreground/40"
-        />
-        <p className="text-sm font-medium text-foreground">
-          Selecciona una prospección
+          className="flex size-14 items-center justify-center rounded-full bg-muted"
+        >
+          <ClipboardList className="size-6 text-muted-foreground/50" />
+        </span>
+
+        <p className="text-lg font-semibold text-want-navy">
+          Seleccione un prospecto
         </p>
-        <p className="max-w-xs text-sm text-muted-foreground">
-          Elige un asociado de la bandeja para ver su detalle, registrar una
-          gestión y avanzar de etapa.
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Elija un asociado de la bandeja para abrir su cuadro de gestión, o
+          inicie una nueva prospección.
         </p>
       </div>
-    </Panel>
+    </section>
   );
 }

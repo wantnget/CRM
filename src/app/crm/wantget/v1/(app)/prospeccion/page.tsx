@@ -26,8 +26,10 @@ import { esFiltroBandeja, type FiltroBandeja } from "@/lib/validaciones/prospecc
  * Es exclusiva del Gestor: la matriz de visibilidad del spec no le da esta
  * pantalla a ningún otro rol, y el alcance de los datos es el del propio gestor.
  *
- * La prospección abierta viaja en `?id=`; sin ese parámetro se abre la primera
- * de la lista, que es lo que muestra el prototipo al entrar.
+ * La prospección abierta viaja en `?id=`. Sin ese parámetro no hay ninguna
+ * abierta y el cuadro de gestión muestra su estado vacío, como en el prototipo:
+ * al entrar no se preselecciona nada, y volver a pulsar el ítem abierto —o la
+ * equis del detalle— lo cierra.
  */
 
 const RUTA = `${BASE_CRM}/prospeccion`;
@@ -75,20 +77,11 @@ export default async function ProspeccionPage({
     obtenerCanalesHabilitados(contexto.usuario.id),
   ]);
 
-  // Un id que no exista o que sea de otro gestor cae en la primera de la lista:
+  // Un id que no exista o que sea de otro gestor simplemente no abre nada:
   // obtenerDetalle filtra por gestor, así que devuelve null y no hay fuga.
-  const pedido = id
+  const detalle = id
     ? await obtenerDetalle({ ...alcance, oportunidadId: id })
     : null;
-
-  const detalle =
-    pedido ??
-    (bandeja.items.length > 0
-      ? await obtenerDetalle({
-          ...alcance,
-          oportunidadId: bandeja.items[0].oportunidadId,
-        })
-      : null);
 
   const [historial, canalesDelGestor] = detalle
     ? await Promise.all([
@@ -100,6 +93,11 @@ export default async function ProspeccionPage({
         obtenerCanalesDelGestor(contexto.usuario.id),
       ])
     : [[], []];
+
+  // Cerrar el detalle conserva el filtro y la búsqueda: solo suelta el id.
+  const parametrosSinId = new URLSearchParams({ estado: filtro });
+  if (busqueda.trim()) parametrosSinId.set("q", busqueda.trim());
+  const hrefSinSeleccion = `${RUTA}?${parametrosSinId.toString()}`;
 
   return (
     <>
@@ -134,7 +132,11 @@ export default async function ProspeccionPage({
           <div className="space-y-6 lg:col-span-3">
             {detalle ? (
               <>
-                <PanelProspeccion detalle={detalle} canales={canalesDelGestor} />
+                <PanelProspeccion
+                  detalle={detalle}
+                  canales={canalesDelGestor}
+                  hrefCerrar={hrefSinSeleccion}
+                />
                 <HistorialAsociado gestiones={historial} />
               </>
             ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { alternarCanal } from "@/app/crm/wantget/v1/(app)/usuarios/acciones";
 
@@ -13,17 +14,20 @@ import { alternarCanal } from "@/app/crm/wantget/v1/(app)/usuarios/acciones";
  * RN-18: el backend revalida el permiso, la UI no es el control.
  */
 
-const ETIQUETAS: Record<string, string> = {
+/**
+ * Abreviaturas para la columna, que es angosta: "WhatsApp salida" la ensancha
+ * de más. Es solo presentación; cualquier canal que no esté acá usa el nombre
+ * del catálogo, así que uno nuevo nunca sale como su código en mayúsculas.
+ */
+const ABREVIATURAS: Record<string, string> = {
   WA_SALIDA: "WA salida",
   WA_ENTRADA: "WA entrada",
-  CORREO_SALIDA: "Correo salida",
-  CORREO_ENTRADA: "Correo entrada",
 };
-
-const ORDEN = ["WA_SALIDA", "WA_ENTRADA", "CORREO_SALIDA", "CORREO_ENTRADA"];
 
 export type CanalDeUsuario = {
   canalCodigo: string;
+  /** Nombre del catálogo `canal_comunicacion`. */
+  nombre: string;
   habilitado: boolean;
 };
 
@@ -31,15 +35,19 @@ export function CanalesToggle({
   usuarioId,
   canales,
   editable,
+  aplica,
 }: {
   usuarioId: string;
+  /** Ya vienen ordenados por el `orden` del catálogo. */
   canales: CanalDeUsuario[];
   /** Falso para roles que no administra la Admin de Compañía (RN-07). */
   editable: boolean;
+  /** RN-15: los canales son del rol Gestor. */
+  aplica: boolean;
 }) {
   const [pendiente, iniciar] = useTransition();
 
-  if (canales.length === 0) {
+  if (!aplica || canales.length === 0) {
     return (
       <span className="inline-flex rounded border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">
         No aplica
@@ -47,14 +55,10 @@ export function CanalesToggle({
     );
   }
 
-  const ordenados = [...canales].sort(
-    (a, b) => ORDEN.indexOf(a.canalCodigo) - ORDEN.indexOf(b.canalCodigo),
-  );
-
   return (
     <div className={cn("flex max-w-72 flex-wrap gap-1.5", pendiente && "opacity-60")}>
-      {ordenados.map((canal) => {
-        const etiqueta = ETIQUETAS[canal.canalCodigo] ?? canal.canalCodigo;
+      {canales.map((canal) => {
+        const etiqueta = ABREVIATURAS[canal.canalCodigo] ?? canal.nombre;
 
         return (
           <button
@@ -71,7 +75,17 @@ export function CanalesToggle({
             disabled={!editable || pendiente}
             onClick={() =>
               iniciar(async () => {
-                await alternarCanal(usuarioId, canal.canalCodigo);
+                // Se avisa del fallo: antes se descartaba el resultado y un
+                // rechazo del backend se veía como "el botón no hace nada".
+                const resultado = await alternarCanal(
+                  usuarioId,
+                  canal.canalCodigo,
+                );
+                if (!resultado.ok) {
+                  toast.error("No se pudo cambiar el canal", {
+                    description: resultado.mensaje,
+                  });
+                }
               })
             }
             className={cn(

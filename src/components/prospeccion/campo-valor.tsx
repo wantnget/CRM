@@ -64,8 +64,8 @@ export function CampoValor({
         <input
           type="number"
           inputMode="numeric"
-          min={esMonto ? 1 : 1}
-          step={esMonto ? 1000 : 1}
+          min={1}
+          step={1}
           className={cn(CLASE_CAMPO, esMonto && "pl-7")}
           value={valor}
           onChange={(evento) => onCambiar(evento.target.value)}

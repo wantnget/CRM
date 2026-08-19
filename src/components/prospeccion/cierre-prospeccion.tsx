@@ -120,7 +120,7 @@ export function CierreProspeccion({
       {cerrada ? (
         <p className="mt-3 text-xs text-muted-foreground">
           Una prospección cerrada no se modifica. Para retomar este producto con
-          el asociado, abre una nueva prospección (RN-41).
+          el asociado, abre una nueva prospección.
         </p>
       ) : null}
 

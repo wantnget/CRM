@@ -26,12 +26,22 @@ import {
 
 const RUTA = `${BASE_CRM}/usuarios`;
 
-const CANALES = [
-  "WA_SALIDA",
-  "WA_ENTRADA",
-  "CORREO_SALIDA",
-  "CORREO_ENTRADA",
-] as const;
+/**
+ * Códigos del catálogo de canales, leídos de la base.
+ *
+ * Estaban en una constante con los cuatro originales, y al agregarse LLAMADA el
+ * canal quedó fuera de las tres cosas que dependían de la lista: no se creaba
+ * al dar de alta un Gestor, no pasaba la validación de `alternarCanal` y no
+ * tenía etiqueta. El catálogo es `canal_comunicacion`; leerlo de ahí hace que
+ * un canal nuevo funcione sin tocar código.
+ */
+async function codigosDeCanal(): Promise<string[]> {
+  const canales = await prisma.canalComunicacion.findMany({
+    select: { codigo: true },
+    orderBy: { orden: "asc" },
+  });
+  return canales.map((canal) => canal.codigo);
+}
 
 type Contexto = {
   usuarioId: string;
@@ -260,10 +270,11 @@ export async function crearUsuario(entrada: unknown): Promise<ResultadoAccion> {
         },
       });
 
-      // RN-16: al crear un Gestor se generan los 4 canales, deshabilitados.
+      // RN-16: al crear un Gestor se generan todos los canales del catálogo,
+      // deshabilitados.
       if (datos.rolCodigo === "GESTOR") {
         await tx.usuarioCanal.createMany({
-          data: CANALES.map((canalCodigo) => ({
+          data: (await codigosDeCanal()).map((canalCodigo) => ({
             companiaId: ctx.companiaId,
             usuarioId: creado.id,
             canalCodigo,
@@ -412,7 +423,7 @@ export async function actualizarUsuario(
 
       // Al cambiar de rol hay que reconciliar lo que solo aplica a ciertos roles.
       if (datos.rolCodigo === "GESTOR") {
-        for (const canalCodigo of CANALES) {
+        for (const canalCodigo of await codigosDeCanal()) {
           await tx.usuarioCanal.upsert({
             where: {
               usuarioId_canalCodigo: { usuarioId: actual.id, canalCodigo },
@@ -568,9 +579,11 @@ export async function alternarCanal(
   const ctx = await exigirAdminCompania();
   if (!ctx) return NO_AUTORIZADO;
 
-  if (!(CANALES as readonly string[]).includes(canalCodigo)) {
-    return { ok: false, mensaje: "Canal desconocido." };
-  }
+  const canal = await prisma.canalComunicacion.findUnique({
+    where: { codigo: canalCodigo },
+    select: { codigo: true },
+  });
+  if (!canal) return { ok: false, mensaje: "Canal desconocido." };
 
   const objetivo = await prisma.usuario.findFirst({
     where: { id: usuarioId, companiaId: ctx.companiaId, rolCodigo: "GESTOR" },
@@ -580,26 +593,39 @@ export async function alternarCanal(
 
   const actual = await prisma.usuarioCanal.findUnique({
     where: { usuarioId_canalCodigo: { usuarioId, canalCodigo } },
-    select: { id: true, habilitado: true },
+    select: { habilitado: true },
   });
-  if (!actual) return { ok: false, mensaje: "El canal no está configurado." };
+
+  // Sin fila, el canal está de hecho inhabilitado, así que alternar lo habilita.
+  // Se crea en vez de rechazar: los Gestores dados de alta antes de que
+  // existiera un canal no tienen su fila, y no deberían quedar sin poder
+  // habilitarlo.
+  const habilitado = !(actual?.habilitado ?? false);
 
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.usuarioCanal.update({
-        where: { id: actual.id },
-        data: { habilitado: !actual.habilitado, updatedBy: ctx.usuarioId },
+      await tx.usuarioCanal.upsert({
+        where: { usuarioId_canalCodigo: { usuarioId, canalCodigo } },
+        update: { habilitado, updatedBy: ctx.usuarioId },
+        create: {
+          companiaId: ctx.companiaId,
+          usuarioId,
+          canalCodigo,
+          habilitado,
+        },
       });
 
       await registrarAuditoria(tx, {
         tabla: "usuario_canal",
         registroId: usuarioId,
-        operacion: "UPDATE",
+        operacion: actual ? "UPDATE" : "INSERT",
         usuarioId: ctx.usuarioId,
         companiaId: ctx.companiaId,
         ip: ctx.ip,
-        valoresAnteriores: { canalCodigo, habilitado: actual.habilitado },
-        valoresNuevos: { canalCodigo, habilitado: !actual.habilitado },
+        valoresAnteriores: actual
+          ? { canalCodigo, habilitado: actual.habilitado }
+          : undefined,
+        valoresNuevos: { canalCodigo, habilitado },
       });
     });
   } catch (error) {

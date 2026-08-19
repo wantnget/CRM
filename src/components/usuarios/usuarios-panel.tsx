@@ -7,7 +7,10 @@ import { Panel } from "@/components/panel";
 import { DataTable, type Columna } from "@/components/tabla/data-table";
 import { EstadoPill, type Estado } from "@/components/tabla/estado-pill";
 import { RolBadge } from "@/components/tabla/rol-badge";
-import { CanalesToggle } from "@/components/usuarios/canales-toggle";
+import {
+  CanalesToggle,
+  type CanalDeUsuario,
+} from "@/components/usuarios/canales-toggle";
 import {
   UsuarioDialog,
   type LiderOpcion,
@@ -41,7 +44,10 @@ export type FilaUsuario = {
   oficinaNombre: string | null;
   oficinasIds: string[];
   liderId: string | null;
-  canales: { canalCodigo: string; habilitado: boolean }[];
+  /** Todos los canales del catálogo, con el estado de este usuario. */
+  canales: CanalDeUsuario[];
+  /** RN-15: los canales son del rol Gestor. */
+  aplicanCanales: boolean;
 };
 
 /** RN-07 / RN-08: la Admin de Compañía solo administra Director, Líder y Gestor. */
@@ -205,6 +211,7 @@ export function UsuariosPanel({
         <CanalesToggle
           usuarioId={u.id}
           canales={u.canales}
+          aplica={u.aplicanCanales}
           editable={administrableAqui(u.rolCodigo)}
         />
       ),
