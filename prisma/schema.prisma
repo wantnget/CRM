@@ -11,3 +11,588 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// =====================================================================
+// ENUMS
+// =====================================================================
+
+enum EstadoGenerico {
+  ACTIVO
+  INACTIVO
+}
+
+enum AmbitoRol {
+  GLOBAL
+  COMPANIA
+  OFICINA
+  PROPIO
+  PENDIENTE_DEFINIR
+}
+
+enum UnidadMedidaProducto {
+  UNIDADES
+  MONTO
+}
+
+enum EstadoOportunidad {
+  PROSPECCION
+  CERRADO
+}
+
+enum EtapaProspeccion {
+  CONTACTO
+  OFERTA
+  CIERRE
+}
+
+enum ResultadoCierre {
+  VENTA
+  NO_VENTA
+}
+
+enum DireccionComunicacion {
+  ENTRADA
+  SALIDA
+}
+
+enum MedioComunicacion {
+  WHATSAPP
+  EMAIL
+  TELEFONO
+}
+
+enum TipoCierreSesion {
+  MANUAL
+  AUTOMATICO
+  EXPIRACION_TOKEN
+}
+
+enum TipoCargue {
+  METAS
+  CAMPANAS
+  COMUNICACION_MASIVA
+}
+
+enum EstadoCargue {
+  PENDIENTE
+  PROCESANDO
+  PROCESADO
+  PROCESADO_CON_ERRORES
+  FALLIDO
+}
+
+enum OperacionAuditoria {
+  INSERT
+  UPDATE
+  CAMBIO_ESTADO
+  LOGIN
+  LOGOUT
+  CARGUE
+}
+
+enum TipoIdentificacion {
+  CC
+  CE
+  TI
+  NIT
+  PAS
+  PEP
+}
+
+enum ResultadoContacto {
+  EFECTIVO
+  NO_CONTESTA
+  NUMERO_ERRADO
+  SOLICITA_LLAMAR_DESPUES
+  OTRO
+}
+
+// =====================================================================
+// MÓDULO: CATÁLOGOS
+// =====================================================================
+
+model Rol {
+  codigo      String    @id @db.VarChar(30)
+  nombre      String    @db.VarChar(60)
+  ambito      AmbitoRol
+  orden       Int
+  descripcion String?
+
+  usuarios Usuario[]
+
+  @@map("rol")
+}
+
+model Producto {
+  codigo       String               @id @db.VarChar(30)
+  nombre       String               @db.VarChar(60)
+  unidadMedida UnidadMedidaProducto @map("unidad_medida")
+  orden        Int
+  activo       Boolean              @default(true)
+
+  oportunidades Oportunidad[]
+  metas         Meta[]
+
+  @@map("producto")
+}
+
+model CanalComunicacion {
+  codigo    String                @id @db.VarChar(30)
+  nombre    String                @db.VarChar(60)
+  medio     MedioComunicacion
+  direccion DireccionComunicacion
+  orden     Int
+
+  usuarioCanales UsuarioCanal[]
+  gestiones      Gestion[]
+
+  @@map("canal_comunicacion")
+}
+
+// =====================================================================
+// MÓDULO: TENANCY
+// =====================================================================
+
+model Compania {
+  id                  String         @id @default(uuid()) @db.Uuid
+  nit                 String         @unique @db.VarChar(20)
+  digitoVerificacion  String?        @map("digito_verificacion") @db.Char(1)
+  razonSocial         String         @map("razon_social") @db.VarChar(200)
+  estado              EstadoGenerico @default(ACTIVO)
+  horaCierreSesion    String         @default("18:30") @map("hora_cierre_sesion") @db.VarChar(5)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           String         @map("created_by") @db.Uuid
+  updatedAt           DateTime?      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy           String?        @map("updated_by") @db.Uuid
+
+  oficinas       Oficina[]
+  usuarios       Usuario[]
+  asociados      Asociado[]
+  oportunidades  Oportunidad[]
+  gestiones      Gestion[]
+  metas          Meta[]
+  carguesArchivo CargueArchivo[]
+  auditorias     Auditoria[]
+  usuarioOficinas UsuarioOficina[]
+  usuarioCanales  UsuarioCanal[]
+  asignacionesGestorLider AsignacionGestorLider[]
+  asignacionesAsociado    AsignacionAsociado[]
+
+  @@index([estado])
+  @@map("compania")
+}
+
+model Oficina {
+  id         String         @id @default(uuid()) @db.Uuid
+  companiaId String         @map("compania_id") @db.Uuid
+  codigo     String         @db.VarChar(20)
+  nombre     String         @db.VarChar(120)
+  estado     EstadoGenerico @default(ACTIVO)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String         @map("created_by") @db.Uuid
+  updatedAt  DateTime?      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy  String?        @map("updated_by") @db.Uuid
+
+  compania           Compania             @relation(fields: [companiaId], references: [id])
+  usuarios           Usuario[]
+  usuarioOficinas    UsuarioOficina[]
+  asociados          Asociado[]
+  oportunidades      Oportunidad[]
+
+  @@unique([companiaId, codigo])
+  @@map("oficina")
+}
+
+// =====================================================================
+// MÓDULO: IDENTIDAD
+// =====================================================================
+
+/// Única entidad de identidad del sistema (estructura_bd_crm.json, módulo
+/// IDENTIDAD). Es a la vez el maestro de negocio y el modelo `user` de
+/// better-auth: `email` es "el único dato que el usuario digita en el login".
+/// El mapeo de campos vive en src/lib/auth.ts (user.modelName / user.fields).
+model Usuario {
+  id                  String         @id @default(uuid()) @db.Uuid
+  companiaId          String?        @map("compania_id") @db.Uuid
+  email               String         @unique @db.VarChar(160)
+  numeroIdentificacion String        @map("numero_identificacion") @db.VarChar(20)
+  tipoIdentificacion  TipoIdentificacion @default(CC) @map("tipo_identificacion")
+  nombres             String         @db.VarChar(100)
+  apellidos           String         @db.VarChar(100)
+  telefonoWhatsapp    String         @map("telefono_whatsapp") @db.VarChar(20)
+  rolCodigo           String         @map("rol_codigo") @db.VarChar(30)
+  oficinaId           String?        @map("oficina_id") @db.Uuid
+  estado              EstadoGenerico @default(ACTIVO)
+  // Campos que exige better-auth sobre su modelo `user`. `emailVerified` lo
+  // escribe el plugin emailOTP al validar el código; `image` no se usa hoy.
+  emailVerified       Boolean        @default(false) @map("email_verified")
+  image               String?
+  ultimoAccesoAt      DateTime?      @map("ultimo_acceso_at") @db.Timestamptz(6)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           String?        @map("created_by") @db.Uuid
+  updatedAt           DateTime?      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy           String?        @map("updated_by") @db.Uuid
+
+  compania Compania? @relation(fields: [companiaId], references: [id])
+  rol      Rol       @relation(fields: [rolCodigo], references: [codigo])
+  oficina  Oficina?  @relation(fields: [oficinaId], references: [id])
+
+  // Tablas propias de better-auth. `sessions` reemplaza al modelo Sesion.
+  sessions Session[]
+  accounts Account[]
+
+  usuarioOficinas          UsuarioOficina[]
+  usuarioCanales           UsuarioCanal[]
+  comoGestorAsignaciones   AsignacionGestorLider[] @relation("GestorEnAsignacion")
+  comoLiderAsignaciones    AsignacionGestorLider[] @relation("LiderEnAsignacion")
+  asignacionesComoGestor   AsignacionAsociado[]    @relation("GestorEnAsignacionAsociado")
+  asignacionesRealizadas   AsignacionAsociado[]    @relation("LiderQueAsigna")
+  oportunidadesComoGestor  Oportunidad[]           @relation("GestorEnOportunidad")
+  oportunidadesComoLider   Oportunidad[]           @relation("LiderEnOportunidad")
+  gestiones                Gestion[]
+  metasPropias             Meta[]                  @relation("TitularMeta")
+  metasComoLider           Meta[]                  @relation("LiderEnMeta")
+  carguesArchivo           CargueArchivo[]
+  auditorias               Auditoria[]
+
+  @@unique([companiaId, numeroIdentificacion])
+  @@index([companiaId, rolCodigo, estado])
+  @@index([oficinaId])
+  @@map("usuario")
+}
+
+
+model UsuarioOficina {
+  id         String   @id @default(uuid()) @db.Uuid
+  companiaId String   @map("compania_id") @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  oficinaId  String   @map("oficina_id") @db.Uuid
+  vigente    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String   @map("created_by") @db.Uuid
+
+  compania Compania @relation(fields: [companiaId], references: [id])
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
+  oficina  Oficina  @relation(fields: [oficinaId], references: [id])
+
+  @@unique([usuarioId, oficinaId])
+  @@map("usuario_oficina")
+}
+
+model UsuarioCanal {
+  id          String   @id @default(uuid()) @db.Uuid
+  companiaId  String   @map("compania_id") @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  canalCodigo String   @map("canal_codigo") @db.VarChar(30)
+  habilitado  Boolean  @default(false)
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?  @map("updated_by") @db.Uuid
+
+  compania Compania          @relation(fields: [companiaId], references: [id])
+  usuario  Usuario           @relation(fields: [usuarioId], references: [id])
+  canal    CanalComunicacion @relation(fields: [canalCodigo], references: [codigo])
+
+  @@unique([usuarioId, canalCodigo])
+  @@map("usuario_canal")
+}
+
+
+model AsignacionGestorLider {
+  id             String    @id @default(uuid()) @db.Uuid
+  companiaId     String    @map("compania_id") @db.Uuid
+  gestorId       String    @map("gestor_id") @db.Uuid
+  liderId        String    @map("lider_id") @db.Uuid
+  vigenteDesde   DateTime  @map("vigente_desde") @db.Date
+  vigenteHasta   DateTime? @map("vigente_hasta") @db.Date // NULL = vigencia abierta
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy      String    @map("created_by") @db.Uuid
+
+  compania Compania @relation(fields: [companiaId], references: [id])
+  gestor   Usuario  @relation("GestorEnAsignacion", fields: [gestorId], references: [id])
+  lider    Usuario  @relation("LiderEnAsignacion", fields: [liderId], references: [id])
+
+  @@index([gestorId, vigenteDesde])
+  @@index([liderId])
+  @@map("asignacion_gestor_lider")
+}
+
+// =====================================================================
+// MÓDULO: AUTENTICACIÓN
+// =====================================================================
+
+// Las tablas de este módulo las administra better-auth. Reemplazan a los
+// modelos Sesion y CodigoVerificacion del diseño preliminar:
+//
+//   codigo_verificacion -> verification  (OTP; el plugin emailOTP guarda el
+//     código hasheado en `value` y le anexa el contador de intentos, por eso
+//     no era mapeable a codigo_hash + intentos_fallidos)
+//   sesion              -> session       (ventana de sesión; `expiresAt` es el
+//     cierre programado, calculado desde compania.horaCierreSesion en el hook
+//     de src/lib/auth.ts, que resuelve PA-04)
+//
+// Reglas del spec que quedan cubiertas aquí: RN-21 (expiresIn 120s), RN-24
+// (better-auth sobrescribe el verification por identifier), RN-25
+// (allowedAttempts 5), RN-27/RN-28 (cierre manual y automático + tipoCierre).
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Campos de negocio añadidos vía session.additionalFields (src/lib/auth.ts).
+  // companiaId es requisito de aislamiento multi-tenant del spec; tipoCierre
+  // conserva RN-28 (distinguir cierre MANUAL de AUTOMATICO).
+  companiaId String?           @map("compania_id") @db.Uuid
+  tipoCierre TipoCierreSesion? @map("tipo_cierre")
+
+  userId String  @map("user_id") @db.Uuid
+  user   Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  auditorias Auditoria[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId String  @map("user_id") @db.Uuid
+  user   Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// =====================================================================
+// MÓDULO: COMERCIAL
+// =====================================================================
+
+model Asociado {
+  id                   String         @id @default(uuid()) @db.Uuid
+  companiaId           String         @map("compania_id") @db.Uuid
+  numeroIdentificacion String         @map("numero_identificacion") @db.VarChar(20)
+  tipoIdentificacion   TipoIdentificacion @default(CC) @map("tipo_identificacion")
+  nombreCompleto       String         @map("nombre_completo") @db.VarChar(200)
+  telefonoWhatsapp     String?        @map("telefono_whatsapp") @db.VarChar(20)
+  email                String?        @db.VarChar(160)
+  oficinaId            String         @map("oficina_id") @db.Uuid
+  estado               EstadoGenerico @default(ACTIVO)
+  origen               String?        @db.VarChar(40)
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy            String         @map("created_by") @db.Uuid
+  updatedAt            DateTime?      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy            String?        @map("updated_by") @db.Uuid
+
+  compania      Compania             @relation(fields: [companiaId], references: [id])
+  oficina       Oficina              @relation(fields: [oficinaId], references: [id])
+  asignaciones  AsignacionAsociado[]
+  oportunidades Oportunidad[]
+  gestiones     Gestion[]
+
+  @@unique([companiaId, numeroIdentificacion])
+  @@index([oficinaId])
+  @@index([companiaId, nombreCompleto])
+  @@map("asociado")
+}
+
+model AsignacionAsociado {
+  id                 String    @id @default(uuid()) @db.Uuid
+  companiaId         String    @map("compania_id") @db.Uuid
+  asociadoId         String    @map("asociado_id") @db.Uuid
+  gestorId           String    @map("gestor_id") @db.Uuid
+  asignadoPorId      String    @map("asignado_por_id") @db.Uuid
+  fechaAsignacion    DateTime  @map("fecha_asignacion") @db.Timestamptz(6)
+  vigente            Boolean   @default(true)
+  fechaDesasignacion DateTime? @map("fecha_desasignacion") @db.Timestamptz(6)
+  observacion        String?
+
+  compania    Compania @relation(fields: [companiaId], references: [id])
+  asociado    Asociado @relation(fields: [asociadoId], references: [id])
+  gestor      Usuario  @relation("GestorEnAsignacionAsociado", fields: [gestorId], references: [id])
+  asignadoPor Usuario  @relation("LiderQueAsigna", fields: [asignadoPorId], references: [id])
+
+  @@index([gestorId, vigente])
+  @@index([asociadoId, vigente])
+  
+  @@map("asignacion_asociado")
+}
+
+model Oportunidad {
+  id                 String                @id @default(uuid()) @db.Uuid
+  companiaId         String                @map("compania_id") @db.Uuid
+  asociadoId         String                @map("asociado_id") @db.Uuid
+  productoCodigo     String                @map("producto_codigo") @db.VarChar(30)
+  gestorId           String                @map("gestor_id") @db.Uuid
+  liderId            String                @map("lider_id") @db.Uuid
+  oficinaId          String                @map("oficina_id") @db.Uuid
+  estado             EstadoOportunidad     @default(PROSPECCION)
+  etapa              EtapaProspeccion      @default(CONTACTO)
+  resultadoCierre    ResultadoCierre?      @map("resultado_cierre")
+  cantidad           Int?                  
+  monto              Decimal?              @db.Decimal(18, 2)
+  fechaApertura      DateTime              @map("fecha_apertura") @db.Timestamptz(6)
+  fechaUltimaGestion DateTime?             @map("fecha_ultima_gestion") @db.Timestamptz(6)
+  fechaCierre        DateTime?             @map("fecha_cierre") @db.Timestamptz(6)
+  periodo            String                @db.Char(7)
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy          String                @map("created_by") @db.Uuid
+  updatedAt          DateTime?             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy          String?               @map("updated_by") @db.Uuid
+
+  compania Compania @relation(fields: [companiaId], references: [id])
+  asociado Asociado @relation(fields: [asociadoId], references: [id])
+  producto Producto @relation(fields: [productoCodigo], references: [codigo])
+  gestor   Usuario  @relation("GestorEnOportunidad", fields: [gestorId], references: [id])
+  lider    Usuario  @relation("LiderEnOportunidad", fields: [liderId], references: [id])
+  oficina  Oficina  @relation(fields: [oficinaId], references: [id])
+  gestiones Gestion[]
+  metas     Meta[]
+
+  @@index([companiaId, periodo, productoCodigo])
+  @@index([gestorId, periodo])
+  @@index([liderId, periodo])
+  @@index([oficinaId, periodo])
+  @@index([asociadoId, fechaApertura])
+  @@index([estado, etapa])
+
+  @@map("oportunidad")
+}
+
+model Gestion {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  companiaId         String                 @map("compania_id") @db.Uuid
+  oportunidadId      String                 @map("oportunidad_id") @db.Uuid
+  asociadoId         String                 @map("asociado_id") @db.Uuid
+  gestorId           String                 @map("gestor_id") @db.Uuid
+  fechaHora          DateTime               @map("fecha_hora") @db.Timestamptz(6)
+  etapa              EtapaProspeccion
+  canalCodigo        String?                @map("canal_codigo") @db.VarChar(30)
+  direccion          DireccionComunicacion?
+  contenido          String?
+  observacion        String?
+  resultadoContacto  ResultadoContacto?     @map("resultado_contacto")
+  proximoContactoAt  DateTime?              @map("proximo_contacto_at") @db.Timestamptz(6)
+  mensajeExternoId   String?                @map("mensaje_externo_id") @db.VarChar(120)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy          String                 @map("created_by") @db.Uuid
+
+  compania    Compania           @relation(fields: [companiaId], references: [id])
+  oportunidad Oportunidad        @relation(fields: [oportunidadId], references: [id])
+  asociado    Asociado           @relation(fields: [asociadoId], references: [id])
+  gestor      Usuario            @relation(fields: [gestorId], references: [id])
+  canal       CanalComunicacion? @relation(fields: [canalCodigo], references: [codigo])
+
+  @@index([oportunidadId, fechaHora])
+  @@index([asociadoId, fechaHora])
+  @@index([gestorId, fechaHora])
+  @@map("gestion")
+}
+model Meta {
+  id             String    @id @default(uuid()) @db.Uuid
+  companiaId     String    @map("compania_id") @db.Uuid
+  periodo        String    @db.Char(7) // YYYY-MM
+  rolObjetivo    String    @map("rol_objetivo") @db.VarChar(30)
+  usuarioId      String    @map("usuario_id") @db.Uuid
+  liderId        String?   @map("lider_id") @db.Uuid
+  productoCodigo String    @map("producto_codigo") @db.VarChar(30)
+  metaCantidad   Int?      @map("meta_cantidad")
+  metaMonto      Decimal?  @map("meta_monto") @db.Decimal(18, 2)
+  cargueId       String?   @map("cargue_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy      String    @map("created_by") @db.Uuid
+  updatedAt      DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy      String?   @map("updated_by") @db.Uuid
+
+  compania Compania       @relation(fields: [companiaId], references: [id])
+  usuario  Usuario        @relation("TitularMeta", fields: [usuarioId], references: [id])
+  lider    Usuario?       @relation("LiderEnMeta", fields: [liderId], references: [id])
+  producto Producto       @relation(fields: [productoCodigo], references: [codigo])
+  cargue   CargueArchivo? @relation(fields: [cargueId], references: [id])
+  oportunidadesRef Oportunidad[]
+
+  @@unique([companiaId, periodo, usuarioId, productoCodigo])
+  @@index([periodo, productoCodigo])
+  @@map("meta")
+}
+
+// =====================================================================
+// MÓDULO: SOPORTE
+// =====================================================================
+
+model CargueArchivo {
+  id                 String       @id @default(uuid()) @db.Uuid
+  companiaId         String       @map("compania_id") @db.Uuid
+  tipo               TipoCargue
+  usuarioId          String       @map("usuario_id") @db.Uuid
+  nombreArchivo      String       @map("nombre_archivo") @db.VarChar(255)
+  rutaAlmacenamiento String?      @map("ruta_almacenamiento")
+  hashArchivo        String?      @map("hash_archivo") @db.VarChar(64)
+  periodo            String?      @db.Char(7)
+  filasTotales       Int?         @map("filas_totales")
+  filasOk            Int?         @map("filas_ok")
+  filasError         Int?         @map("filas_error")
+  estado             EstadoCargue @default(PENDIENTE)
+  logErrores         Json?        @map("log_errores")
+  iniciadoAt         DateTime     @map("iniciado_at") @db.Timestamptz(6)
+  finalizadoAt       DateTime?    @map("finalizado_at") @db.Timestamptz(6)
+
+  compania Compania @relation(fields: [companiaId], references: [id])
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
+  metas    Meta[]
+
+  @@index([companiaId, tipo, iniciadoAt])
+  @@map("cargue_archivo")
+}
+
+model Auditoria {
+  id               BigInt             @id @default(autoincrement())
+  companiaId       String?            @map("compania_id") @db.Uuid
+  tabla            String             @db.VarChar(60)
+  registroId       String             @map("registro_id") @db.Uuid
+  operacion        OperacionAuditoria
+  usuarioId        String?            @map("usuario_id") @db.Uuid
+  sesionId         String?            @map("sesion_id") @db.Uuid
+  valoresAnteriores Json?             @map("valores_anteriores")
+  valoresNuevos    Json?              @map("valores_nuevos")
+  ip               String?            @db.Inet
+  ocurridoAt       DateTime           @default(now()) @map("ocurrido_at") @db.Timestamptz(6)
+
+  compania Compania? @relation(fields: [companiaId], references: [id])
+  usuario  Usuario?  @relation(fields: [usuarioId], references: [id])
+  // Apunta a la tabla de sesiones de better-auth, que reemplazó a `sesion`.
+  sesion   Session?  @relation(fields: [sesionId], references: [id])
+
+  @@index([tabla, registroId, ocurridoAt])
+  @@index([usuarioId, ocurridoAt])
+  @@map("auditoria")
+}
+
