@@ -2,11 +2,14 @@ import "dotenv/config";
 import type { DireccionComunicacion } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import {
+  ASOCIADOS,
+  ASOCIADO_PRUEBA,
   DOMINIO,
   METAS,
+  PERIODOS,
   VENTAS,
   type VentaReferencia,
-} from "./datos-comerciales";
+} from "./datos-demo";
 
 /**
  * Semilla derivada de public/docs/estructura_bd_crm.json:
@@ -56,6 +59,27 @@ const CANALES = [
 
 const COMPANIA = { nit: "900100200", razonSocial: "Fondo Want" };
 
+/**
+ * A dónde llegan de verdad los mensajes de la demo.
+ *
+ * Todo lo que la aplicación envía —el código de acceso por WhatsApp, y los
+ * mensajes, correos y llamadas que el Gestor dispara desde Prospección— sale
+ * hacia un contacto real. En la demo ese contacto es uno solo, para que quien
+ * la presenta reciba todo en su propio teléfono y correo.
+ *
+ * Aparte quedan los usuarios de prueba del equipo de desarrollo, con su propio
+ * número, para poder trabajar sin interferir con la demo.
+ */
+const CONTACTO_DEMO = {
+  telefono: "+573157427418",
+  email: "dorjuela@wantnget.com.co",
+};
+
+const CONTACTO_PRUEBAS = {
+  telefono: "+573145642627",
+  email: "jjimenez@wantnget.com.co",
+};
+
 const OFICINAS = [
   { codigo: "NORTE", nombre: "Norte" },
   { codigo: "SUR", nombre: "Sur" },
@@ -81,28 +105,58 @@ type SeedUsuario = {
  * creador de Fondo Want.
  */
 const ADMIN_GENERAL: SeedUsuario = {
-  email: "admin.general@wantnget.com.co",
+  email: `admin.general${DOMINIO}`,
   nombres: "Administrador",
   apellidos: "General",
-  numeroIdentificacion: "00000001",
+  numeroIdentificacion: "90000001",
   rolCodigo: "ADMIN_GENERAL",
   oficina: null,
-  telefono: "+570000000001",
+  telefono: CONTACTO_DEMO.telefono,
+};
+
+/**
+ * Personal de la compañía de demostración. Nombres ficticios y correos que
+ * dicen el rol, para que en la demo se vea con quién se está entrando.
+ *
+ * Todos comparten el teléfono de CONTACTO_DEMO: el código de acceso llega
+ * siempre al mismo WhatsApp, así se puede alternar de rol cerrando sesión y
+ * entrando con otro correo, sin tocar la base.
+ */
+/**
+ * ADMIN_GENERAL del equipo de desarrollo. Va aparte de USUARIOS porque
+ * ck_usuario_admin_general_sin_compania exige que el rol no tenga compañía, y
+ * todo lo de USUARIOS se crea dentro de Fondo Want.
+ */
+const ADMIN_GENERAL_PRUEBAS: SeedUsuario = {
+  email: `prueba.admin.general${DOMINIO}`,
+  nombres: "Pruebas",
+  apellidos: "Admin General",
+  numeroIdentificacion: "91000001",
+  rolCodigo: "ADMIN_GENERAL",
+  oficina: null,
+  telefono: CONTACTO_PRUEBAS.telefono,
 };
 
 const USUARIOS: SeedUsuario[] = [
-  { email: "hcardps@wantnget.com.co", nombres: "Harold", apellidos: "Cardoso", numeroIdentificacion: "00000011", rolCodigo: "LIDER", oficina: "NORTE", telefono: "+573022988434" },
-  { email: "dorjuela@wantnget.com.co", nombres: "Daniel", apellidos: "Orjuela", numeroIdentificacion: "00000002", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000002" },
-  { email: "amunoz@wantnget.com.co", nombres: "Andrés", apellidos: "Muñoz", numeroIdentificacion: "00000003", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000003" },
-  { email: "pperez@wantnget.com.co", nombres: "Pedro", apellidos: "Perez", numeroIdentificacion: "10125142", rolCodigo: "DIRECTOR", oficina: null, telefono: "+570000000004" },
-  { email: "mmartinez@wantnget.com.co", nombres: "Maria", apellidos: "Martínez", numeroIdentificacion: "10304052", rolCodigo: "LIDER", oficina: "NORTE", telefono: "+570000000005" },
-  { email: "ccaceres@wantnget.com.co", nombres: "Carolina", apellidos: "Cacerez", numeroIdentificacion: "10748769", rolCodigo: "LIDER", oficina: "SUR", telefono: "+570000000006" },
-  { email: "prubio@wantnget.com.co", nombres: "Paula", apellidos: "Rubio", numeroIdentificacion: "31475749", rolCodigo: "GESTOR", oficina: "SUR", telefono: "+570000000007", canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: false, CORREO_ENTRADA: true } },
-  { email: "sramirez@wantnget.com.co", nombres: "Silvana", apellidos: "Ramírez", numeroIdentificacion: "7415749", rolCodigo: "GESTOR", oficina: "SUR", telefono: "+570000000008", canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
-  { email: "pjimenez@wantnget.com.co", nombres: "Pablo", apellidos: "Jimenez", numeroIdentificacion: "41748574", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+570000000009", canales: { WA_SALIDA: false, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
-  { email: "dgonzalez@wantnget.com.co", nombres: "Diana", apellidos: "Gonzalez", numeroIdentificacion: "21457963", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+570000000010", canales: { WA_SALIDA: false, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true } },
-  { email: "hcardoso@wantnget.com.co", nombres: "Hector", apellidos: "Cardoso", numeroIdentificacion: "21457964", rolCodigo: "GESTOR", oficina: "NORTE", telefono: "+573022988434", canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true, LLAMADA: true } },
+  { email: `admin.compania${DOMINIO}`, nombres: "Adriana", apellidos: "Bermúdez", numeroIdentificacion: "90000002", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: CONTACTO_DEMO.telefono },
+  { email: `director${DOMINIO}`, nombres: "Ricardo", apellidos: "Salgado", numeroIdentificacion: "90000003", rolCodigo: "DIRECTOR", oficina: null, telefono: CONTACTO_DEMO.telefono },
+  { email: `lider.norte${DOMINIO}`, nombres: "Marcela", apellidos: "Ocampo", numeroIdentificacion: "90000004", rolCodigo: "LIDER", oficina: "NORTE", telefono: CONTACTO_DEMO.telefono },
+  { email: `lider.sur${DOMINIO}`, nombres: "Esteban", apellidos: "Quintero", numeroIdentificacion: "90000005", rolCodigo: "LIDER", oficina: "SUR", telefono: CONTACTO_DEMO.telefono },
+  { email: `gestor.norte1${DOMINIO}`, nombres: "Carolina", apellidos: "Hincapié", numeroIdentificacion: "90000006", rolCodigo: "GESTOR", oficina: "NORTE", telefono: CONTACTO_DEMO.telefono, canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true, LLAMADA: true } },
+  { email: `gestor.norte2${DOMINIO}`, nombres: "Javier", apellidos: "Montoya", numeroIdentificacion: "90000007", rolCodigo: "GESTOR", oficina: "NORTE", telefono: CONTACTO_DEMO.telefono, canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: false, CORREO_ENTRADA: true, LLAMADA: false } },
+  { email: `gestor.sur1${DOMINIO}`, nombres: "Natalia", apellidos: "Tobón", numeroIdentificacion: "90000008", rolCodigo: "GESTOR", oficina: "SUR", telefono: CONTACTO_DEMO.telefono, canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true, LLAMADA: true } },
+  { email: `gestor.sur2${DOMINIO}`, nombres: "Iván", apellidos: "Urrego", numeroIdentificacion: "90000009", rolCodigo: "GESTOR", oficina: "SUR", telefono: CONTACTO_DEMO.telefono, canales: { WA_SALIDA: false, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true, LLAMADA: false } },
 
+  // Usuarios del equipo de desarrollo: uno por rol, con el teléfono de
+  // CONTACTO_PRUEBAS. Sirven para probar sin que los códigos ni los mensajes
+  // caigan en el teléfono de quien está presentando la demo.
+  { email: `prueba.admin.compania${DOMINIO}`, nombres: "Pruebas", apellidos: "Admin Compañía", numeroIdentificacion: "91000002", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: CONTACTO_PRUEBAS.telefono },
+  { email: `prueba.director${DOMINIO}`, nombres: "Pruebas", apellidos: "Director", numeroIdentificacion: "91000003", rolCodigo: "DIRECTOR", oficina: null, telefono: CONTACTO_PRUEBAS.telefono },
+  { email: `prueba.lider${DOMINIO}`, nombres: "Pruebas", apellidos: "Líder", numeroIdentificacion: "91000004", rolCodigo: "LIDER", oficina: "SUR", telefono: CONTACTO_PRUEBAS.telefono },
+  { email: `prueba.gestor${DOMINIO}`, nombres: "Pruebas", apellidos: "Gestor", numeroIdentificacion: "91000005", rolCodigo: "GESTOR", oficina: "SUR", telefono: CONTACTO_PRUEBAS.telefono, canales: { WA_SALIDA: true, WA_ENTRADA: true, CORREO_SALIDA: true, CORREO_ENTRADA: true, LLAMADA: true } },
+  // PA-01: el rol CONSULTA no tiene flujo definido en el spec, así que entra a
+  // una pantalla que lo explica. Se incluye para poder verificar justamente eso.
+  { email: `prueba.consulta${DOMINIO}`, nombres: "Pruebas", apellidos: "Consulta", numeroIdentificacion: "91000006", rolCodigo: "CONSULTA", oficina: null, telefono: CONTACTO_PRUEBAS.telefono },
 ];
 
 /**
@@ -111,19 +165,18 @@ const USUARIOS: SeedUsuario[] = [
  * como Líder y ver un equipo con datos reales.
  */
 const ASIGNACIONES_GESTOR_LIDER = [
-  { gestor: "dgonzalez@wantnget.com.co", lider: "hcardps@wantnget.com.co" },
-  { gestor: "pjimenez@wantnget.com.co", lider: "hcardps@wantnget.com.co" },
-  { gestor: "prubio@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
-  { gestor: "sramirez@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
-  // No viene del Excel de referencia: usuario de pruebas agregado al seed.
-  { gestor: "hcardoso@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
+  { gestor: `gestor.norte1${DOMINIO}`, lider: `lider.norte${DOMINIO}` },
+  { gestor: `gestor.norte2${DOMINIO}`, lider: `lider.norte${DOMINIO}` },
+  { gestor: `gestor.sur1${DOMINIO}`, lider: `lider.sur${DOMINIO}` },
+  { gestor: `gestor.sur2${DOMINIO}`, lider: `lider.sur${DOMINIO}` },
+  { gestor: `prueba.gestor${DOMINIO}`, lider: `prueba.lider${DOMINIO}` },
 ];
 
 /** RN-14: en los datos de referencia cada Líder tiene una sola oficina. */
 const OFICINAS_POR_LIDER = [
-  { lider: "mmartinez@wantnget.com.co", oficinas: ["NORTE"] },
-  { lider: "hcardps@wantnget.com.co", oficinas: ["NORTE"] },
-  { lider: "ccaceres@wantnget.com.co", oficinas: ["SUR"] },
+  { lider: `lider.norte${DOMINIO}`, oficinas: ["NORTE"] },
+  { lider: `lider.sur${DOMINIO}`, oficinas: ["SUR"] },
+  { lider: `prueba.lider${DOMINIO}`, oficinas: ["SUR"] },
 ];
 
 // El dataset sintético de la rama de Director (4 asociados y una oportunidad
@@ -132,16 +185,19 @@ const OFICINAS_POR_LIDER = [
 // aquel cubría. Además duplicaba parejas asociado + producto abiertas, que el
 // índice ux_oportunidad_abierta_asociado_producto (RN-40) ya no admite.
 
+/**
+ * Override puntual del teléfono de un usuario, para desarrollo local.
+ *
+ * Exige las dos variables. Antes, con solo SEED_OTP_PHONE, el número se
+ * aplicaba a todos los usuarios; eso ahora pisaría el reparto de la demo
+ * —el teléfono de quien presenta en unos usuarios y el del equipo de
+ * desarrollo en otros—, así que un SEED_OTP_PHONE suelto se ignora y avisa.
+ */
 function telefonoDe(usuario: SeedUsuario) {
   const overridePhone = process.env.SEED_OTP_PHONE;
-  if (!overridePhone) return usuario.telefono;
-
   const overrideEmail = process.env.SEED_OTP_EMAIL?.toLowerCase();
 
-  // Sin SEED_OTP_EMAIL el número va a todos los usuarios del seed: es lo que
-  // permite alternar de rol solo cerrando sesión y entrando con otro correo,
-  // sin editar .env ni volver a sembrar.
-  if (!overrideEmail) return overridePhone;
+  if (!overridePhone || !overrideEmail) return usuario.telefono;
 
   return usuario.email === overrideEmail ? overridePhone : usuario.telefono;
 }
@@ -203,29 +259,47 @@ async function seedComercial(
   });
   const unidad = new Map(productos.map((p) => [p.codigo, p.unidadMedida]));
 
-  // 1. Asociados. El Excel no trae teléfono ni correo (INC-02 del spec), así
-  //    que quedan nulos: ambas columnas son opcionales.
+  // 1. Asociados.
+  //
+  // El teléfono y el correo no son de los asociados ficticios: son el destino
+  // real al que deben llegar los envíos de la demo. Cuando el Gestor manda un
+  // WhatsApp, un correo o una llamada desde Prospección, la aplicación usa
+  // estos campos, así que todo termina en el contacto de quien presenta.
+  //
+  // El único distinto es ASOCIADO_PRUEBA, que apunta al equipo de desarrollo
+  // para poder probar envíos sin molestar a quien está en la demo.
   const asociados = new Map<string, string>();
-  for (const venta of VENTAS) {
-    if (asociados.has(venta.numeroIdentificacion)) continue;
+
+  for (const asociado of ASOCIADOS) {
+    const esDePrueba =
+      asociado.numeroIdentificacion === ASOCIADO_PRUEBA.numeroIdentificacion;
+    const contacto = esDePrueba ? CONTACTO_PRUEBAS : CONTACTO_DEMO;
+
     const registro = await prisma.asociado.upsert({
       where: {
         companiaId_numeroIdentificacion: {
           companiaId,
-          numeroIdentificacion: venta.numeroIdentificacion,
+          numeroIdentificacion: asociado.numeroIdentificacion,
         },
       },
-      update: { nombreCompleto: venta.nombreAsociado },
+      update: {
+        nombreCompleto: asociado.nombreCompleto,
+        telefonoWhatsapp: contacto.telefono,
+        email: contacto.email,
+        oficinaId: oficinas.get(asociado.oficinaCodigo)!,
+      },
       create: {
         companiaId,
-        numeroIdentificacion: venta.numeroIdentificacion,
-        nombreCompleto: venta.nombreAsociado,
-        oficinaId: oficinas.get(venta.oficinaCodigo)!,
+        numeroIdentificacion: asociado.numeroIdentificacion,
+        nombreCompleto: asociado.nombreCompleto,
+        telefonoWhatsapp: contacto.telefono,
+        email: contacto.email,
+        oficinaId: oficinas.get(asociado.oficinaCodigo)!,
         origen: "CARGUE",
         createdBy: adminGeneralId,
       },
     });
-    asociados.set(venta.numeroIdentificacion, registro.id);
+    asociados.set(asociado.numeroIdentificacion, registro.id);
   }
 
   // 2. Oportunidades: una fila de la hoja Ventas es una oportunidad.
@@ -431,8 +505,11 @@ async function seedComercial(
   }
 
   console.log(
-    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ${METAS.length} metas, ${asignadas.size} asignaciones de asociado, ${gestionesCreadas} gestiones`,
+    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ` +
+      `${METAS.length} metas, ${asignadas.size} asignaciones de asociado, ` +
+      `${gestionesCreadas} gestiones`,
   );
+  console.log(`Periodos con datos: ${PERIODOS.join(', ')}`);
 }
 
 async function main() {
@@ -451,6 +528,22 @@ async function main() {
       numeroIdentificacion: ADMIN_GENERAL.numeroIdentificacion,
       telefonoWhatsapp: telefonoDe(ADMIN_GENERAL),
       rolCodigo: ADMIN_GENERAL.rolCodigo,
+      emailVerified: true,
+    },
+  });
+
+  // El segundo ADMIN_GENERAL, para el equipo de desarrollo. Mismo trato: sin
+  // compañía y con su propio teléfono.
+  await prisma.usuario.upsert({
+    where: { email: ADMIN_GENERAL_PRUEBAS.email },
+    update: { telefonoWhatsapp: telefonoDe(ADMIN_GENERAL_PRUEBAS) },
+    create: {
+      email: ADMIN_GENERAL_PRUEBAS.email,
+      nombres: ADMIN_GENERAL_PRUEBAS.nombres,
+      apellidos: ADMIN_GENERAL_PRUEBAS.apellidos,
+      numeroIdentificacion: ADMIN_GENERAL_PRUEBAS.numeroIdentificacion,
+      telefonoWhatsapp: telefonoDe(ADMIN_GENERAL_PRUEBAS),
+      rolCodigo: ADMIN_GENERAL_PRUEBAS.rolCodigo,
       emailVerified: true,
     },
   });
@@ -572,24 +665,6 @@ async function main() {
   //    usuarios y las oficinas, y las metas necesitan las asignaciones.
   await seedComercial(compania.id, adminGeneral.id, usuarios, oficinas);
 
-  // El Excel de referencia no trae email de asociado (INC-02), así que los
-  // asociados de prueba de hcardoso quedan sin correo. Se les asigna el
-  // EMAIL_PRUEBA_ASOCIADO para poder probar el envío real de "Correo salida".
-  const emailPrueba = process.env.EMAIL_PRUEBA_ASOCIADO;
-  if (emailPrueba) {
-    const identificacionesHcardoso = VENTAS.filter(
-      (v) => v.gestor === "hcardoso",
-    ).map((v) => v.numeroIdentificacion);
-
-    await prisma.asociado.updateMany({
-      where: {
-        companiaId: compania.id,
-        numeroIdentificacion: { in: identificacionesHcardoso },
-      },
-      data: { email: emailPrueba },
-    });
-  }
-
   const telefonoPruebas = process.env.SEED_OTP_PHONE;
   const soloUno = process.env.SEED_OTP_EMAIL;
 
@@ -606,10 +681,17 @@ async function main() {
     );
   } else {
     console.log(
-      `\nTeléfono de pruebas aplicado a los ${USUARIOS.length + 1} usuarios: se puede entrar con` +
+      `\nTeléfono de pruebas aplicado a los ${USUARIOS.length + 2} usuarios: se puede entrar con` +
         "\ncualquiera de los correos y el código llega al mismo WhatsApp.",
     );
   }
+
+  console.log(
+    `\nDemo: los códigos de acceso y los envíos de Prospección van a ` +
+      `${CONTACTO_DEMO.telefono} y ${CONTACTO_DEMO.email}.` +
+      `\nUsuarios prueba.* y el asociado ${ASOCIADO_PRUEBA.numeroIdentificacion} ` +
+      `van a ${CONTACTO_PRUEBAS.telefono} y ${CONTACTO_PRUEBAS.email}.`,
+  );
 }
 
 main()
