@@ -1,4 +1,5 @@
 import "dotenv/config";
+import type { DireccionComunicacion } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import {
   DOMINIO,
@@ -211,6 +212,10 @@ async function seedComercial(
   }
 
   // 2. Oportunidades: una fila de la hoja Ventas es una oportunidad.
+  //
+  // Las gestiones se borran primero: apuntan a la oportunidad con RESTRICT, así
+  // que en una re-corrida el delete de oportunidades falla si quedan.
+  await prisma.gestion.deleteMany({ where: { companiaId } });
   await prisma.oportunidad.deleteMany({ where: { companiaId } });
 
   const valorDe = (venta: VentaReferencia) => {
@@ -220,11 +225,20 @@ async function seedComercial(
       : { cantidad: venta.valor, monto: null };
   };
 
+  // Se guardan para derivar de ellas las gestiones del paso 5.
+  const oportunidades: {
+    id: string;
+    asociadoId: string;
+    gestorId: string;
+    etapa: string;
+    fecha: Date;
+  }[] = [];
+
   for (const venta of VENTAS) {
     const fecha = new Date(`${venta.fecha}T12:00:00Z`);
     const cerrada = venta.etapa === "CIERRE";
 
-    await prisma.oportunidad.create({
+    const creada = await prisma.oportunidad.create({
       data: {
         companiaId,
         asociadoId: asociados.get(venta.numeroIdentificacion)!,
@@ -243,7 +257,10 @@ async function seedComercial(
         periodo: venta.fecha.slice(0, 7),
         createdBy: adminGeneralId,
       },
+      select: { id: true, asociadoId: true, gestorId: true, etapa: true },
     });
+
+    oportunidades.push({ ...creada, fecha });
   }
 
   // 3. Metas. El líder que trae la hoja se ignora (INC-07): las 28 filas dicen
@@ -318,8 +335,86 @@ async function seedComercial(
     });
   }
 
+  // 5. Gestiones.
+  //
+  // El Excel no trae la bitácora: la hoja Ventas es el resultado, no el proceso.
+  // Sin gestiones la "Historia de gestiones del asociado" de CRM.docx §7.3 sale
+  // vacía en las 56 prospecciones, así que se derivan de la etapa de cada una:
+  // toda oportunidad tuvo un contacto (RN-46) y las que llegaron a oferta o a
+  // cierre tuvieron además una gestión de oferta.
+  //
+  // Es dato de desarrollo, igual que las asignaciones del paso 4.
+  const canalesPorGestor = new Map<string, { codigo: string; direccion: DireccionComunicacion }[]>();
+  for (const gestor of new Set(oportunidades.map((o) => o.gestorId))) {
+    const habilitados = await prisma.usuarioCanal.findMany({
+      where: { usuarioId: gestor, habilitado: true },
+      select: { canalCodigo: true, canal: { select: { direccion: true } } },
+      orderBy: { canalCodigo: "asc" },
+    });
+    canalesPorGestor.set(
+      gestor,
+      habilitados.map((h) => ({ codigo: h.canalCodigo, direccion: h.canal.direccion })),
+    );
+  }
+
+  const OBSERVACIONES = {
+    CONTACTO: [
+      "Primer contacto efectivo. El asociado manifiesta interés y pide detalle de condiciones.",
+      "Sin respuesta en el primer intento. Se reprograma el contacto para el siguiente día hábil.",
+      "Se validó el interés del asociado y se acordó enviar la propuesta.",
+      "El asociado solicita ampliar el monto y revisar la cuota mensual. Se agenda seguimiento.",
+    ],
+    OFERTA: [
+      "Se presentaron condiciones, plazo y beneficios. El asociado los revisa con su familia.",
+      "Se validó capacidad de pago y documentos. Pendiente firma del formato de vinculación.",
+      "El asociado acepta las condiciones presentadas y autoriza continuar con el trámite.",
+      "Se ajustó la propuesta tras la negociación del plazo. A la espera de confirmación.",
+    ],
+  };
+
+  let gestionesCreadas = 0;
+
+  for (const [indice, oportunidad] of oportunidades.entries()) {
+    const canales = canalesPorGestor.get(oportunidad.gestorId) ?? [];
+    if (canales.length === 0) continue;
+
+    // Las gestiones quedan antes de fecha_ultima_gestion de la oportunidad,
+    // que es la fecha de la hoja Ventas, para no contradecirla.
+    const etapas =
+      oportunidad.etapa === "CONTACTO"
+        ? (["CONTACTO"] as const)
+        : (["CONTACTO", "OFERTA"] as const);
+
+    for (const [orden, etapa] of etapas.entries()) {
+      // Determinista a propósito: el seed tiene que ser reproducible.
+      const canal = canales[(indice + orden) % canales.length];
+      const textos = OBSERVACIONES[etapa];
+      const dias = etapas.length - orden;
+
+      const fechaHora = new Date(oportunidad.fecha);
+      fechaHora.setUTCDate(fechaHora.getUTCDate() - dias);
+      fechaHora.setUTCHours(14 + orden, 20 + indice % 30, 0, 0);
+
+      await prisma.gestion.create({
+        data: {
+          companiaId,
+          oportunidadId: oportunidad.id,
+          asociadoId: oportunidad.asociadoId,
+          gestorId: oportunidad.gestorId,
+          fechaHora,
+          etapa,
+          canalCodigo: canal.codigo,
+          direccion: canal.direccion,
+          observacion: textos[(indice + orden) % textos.length],
+          createdBy: oportunidad.gestorId,
+        },
+      });
+      gestionesCreadas++;
+    }
+  }
+
   console.log(
-    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ${METAS.length} metas, ${asignadas.size} asignaciones de asociado`,
+    `Comercial: ${asociados.size} asociados, ${VENTAS.length} oportunidades, ${METAS.length} metas, ${asignadas.size} asignaciones de asociado, ${gestionesCreadas} gestiones`,
   );
 }
 

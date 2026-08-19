@@ -9,9 +9,9 @@ import type { FiltroBandeja } from "@/lib/validaciones/prospeccion";
 /**
  * Bandeja de prospección del Gestor (CRM.docx §7.3).
  *
- * El filtro y la búsqueda viajan por URL, como en la Consulta: el enlace queda
- * compartible, el botón de atrás funciona, y la consulta la sigue haciendo el
- * server component que monta esto.
+ * El filtro, la búsqueda y la prospección seleccionada viajan por URL, como en
+ * la Consulta: el enlace queda compartible, el botón de atrás funciona, y la
+ * consulta la sigue haciendo el server component que monta esto.
  *
  * La lista tiene scroll propio en vez de crecer: a la derecha va el cuadro de
  * gestión, y si la bandeja empuja la página hacia abajo el cuadro se sale de la
@@ -24,10 +24,14 @@ const FILTROS: { id: FiltroBandeja; etiqueta: string }[] = [
   { id: "todas", etiqueta: "Todas" },
 ];
 
-function enlace(base: string, filtro: FiltroBandeja, busqueda: string) {
-  const params = new URLSearchParams({ estado: filtro });
-  if (busqueda.trim()) params.set("q", busqueda.trim());
-  return `${base}?${params.toString()}`;
+function enlace(
+  base: string,
+  params: { estado: FiltroBandeja; q: string; id?: string },
+) {
+  const busqueda = new URLSearchParams({ estado: params.estado });
+  if (params.q.trim()) busqueda.set("q", params.q.trim());
+  if (params.id) busqueda.set("id", params.id);
+  return `${base}?${busqueda.toString()}`;
 }
 
 export function BandejaProspeccion({
@@ -35,12 +39,14 @@ export function BandejaProspeccion({
   bandeja,
   filtro,
   busqueda,
+  seleccionadaId,
 }: {
   /** Ruta de la pantalla, sin query. */
   base: string;
   bandeja: Bandeja;
   filtro: FiltroBandeja;
   busqueda: string;
+  seleccionadaId: string | null;
 }) {
   const { items, total } = bandeja;
 
@@ -49,22 +55,30 @@ export function BandejaProspeccion({
       titulo="Bandeja de prospección"
       // "7 de 14": lo que muestra el filtro sobre el total del gestor.
       meta={`${items.length} de ${total}`}
-      claseCuerpo="max-h-[32rem] overflow-y-auto"
+      claseCuerpo="max-h-[34rem] overflow-y-auto"
       barra={
         <div className="space-y-3">
           <BuscadorBandeja base={base} />
 
-          <div className="inline-flex rounded-lg border border-border p-0.5">
+          {/* Tres botones de ancho completo, como en el prototipo. Cambiar de
+              filtro conserva la prospección abierta: su detalle no depende de
+              que esté en la lista filtrada. */}
+          <div className="grid grid-cols-3 gap-2">
             {FILTROS.map((f) => (
               <Link
                 key={f.id}
-                href={enlace(base, f.id, busqueda)}
+                href={enlace(base, {
+                  estado: f.id,
+                  q: busqueda,
+                  id: seleccionadaId ?? undefined,
+                })}
+                scroll={false}
                 aria-current={filtro === f.id ? "true" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition",
+                  "rounded-lg border py-2 text-center text-xs font-medium transition",
                   filtro === f.id
-                    ? "bg-want-navy text-white"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "border-want-naranja bg-want-naranja/10 text-want-navy"
+                    : "border-border text-muted-foreground hover:bg-muted",
                 )}
               >
                 {f.etiqueta}
@@ -85,7 +99,16 @@ export function BandejaProspeccion({
       ) : (
         <ul>
           {items.map((item) => (
-            <ItemBandeja key={item.oportunidadId} item={item} />
+            <ItemBandeja
+              key={item.oportunidadId}
+              item={item}
+              seleccionado={item.oportunidadId === seleccionadaId}
+              href={enlace(base, {
+                estado: filtro,
+                q: busqueda,
+                id: item.oportunidadId,
+              })}
+            />
           ))}
         </ul>
       )}

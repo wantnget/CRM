@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { Panel } from "@/components/panel";
 import { BandejaProspeccion } from "@/components/prospeccion/bandeja-prospeccion";
+import { PanelProspeccion } from "@/components/prospeccion/detalle-prospeccion";
+import { HistorialAsociado } from "@/components/prospeccion/historial-asociado";
 import { NuevaProspeccion } from "@/components/prospeccion/nueva-prospeccion-dialog";
 import { PanelDetalle } from "@/components/prospeccion/panel-detalle";
 import { exigirAcceso } from "@/lib/autorizacion";
@@ -11,16 +13,21 @@ import {
   obtenerCanalesHabilitados,
   obtenerProductosActivos,
 } from "@/lib/consultas/bandeja";
+import {
+  obtenerCanalesDelGestor,
+  obtenerDetalle,
+  obtenerHistorialAsociado,
+} from "@/lib/consultas/detalle";
 import { esFiltroBandeja, type FiltroBandeja } from "@/lib/validaciones/prospeccion";
 
 /**
  * Prospección del Gestor (CRM.docx §7.3).
  *
- * Primera parte: la bandeja con filtros y búsqueda, y el alta de prospecciones.
- * El detalle de cada una —etapas y historial de gestiones— es la segunda parte.
- *
  * Es exclusiva del Gestor: la matriz de visibilidad del spec no le da esta
  * pantalla a ningún otro rol, y el alcance de los datos es el del propio gestor.
+ *
+ * La prospección abierta viaja en `?id=`; sin ese parámetro se abre la primera
+ * de la lista, que es lo que muestra el prototipo al entrar.
  */
 
 const RUTA = `${BASE_CRM}/prospeccion`;
@@ -28,12 +35,12 @@ const RUTA = `${BASE_CRM}/prospeccion`;
 export default async function ProspeccionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; id?: string }>;
 }) {
   // Segunda barrera de autorización, además del proxy: el spec exige que el
   // control de alcance por rol no viva solo en la UI.
   const contexto = await exigirAcceso(RUTA);
-  const { estado, q } = await searchParams;
+  const { estado, q, id } = await searchParams;
 
   const filtro: FiltroBandeja = esFiltroBandeja(estado) ? estado : "curso";
   const busqueda = q ?? "";
@@ -61,12 +68,38 @@ export default async function ProspeccionPage({
     gestorId: contexto.usuario.id,
   };
 
-  const [bandeja, asociados, productos, canales] = await Promise.all([
+  const [bandeja, asociados, productos, canalesHabilitados] = await Promise.all([
     obtenerBandeja({ ...alcance, filtro, busqueda }),
     obtenerAsociadosAsignados(alcance),
     obtenerProductosActivos(),
     obtenerCanalesHabilitados(contexto.usuario.id),
   ]);
+
+  // Un id que no exista o que sea de otro gestor cae en la primera de la lista:
+  // obtenerDetalle filtra por gestor, así que devuelve null y no hay fuga.
+  const pedido = id
+    ? await obtenerDetalle({ ...alcance, oportunidadId: id })
+    : null;
+
+  const detalle =
+    pedido ??
+    (bandeja.items.length > 0
+      ? await obtenerDetalle({
+          ...alcance,
+          oportunidadId: bandeja.items[0].oportunidadId,
+        })
+      : null);
+
+  const [historial, canalesDelGestor] = detalle
+    ? await Promise.all([
+        obtenerHistorialAsociado({
+          companiaId: alcance.companiaId,
+          asociadoId: detalle.asociadoId,
+          oportunidadId: detalle.oportunidadId,
+        }),
+        obtenerCanalesDelGestor(contexto.usuario.id),
+      ])
+    : [[], []];
 
   return (
     <>
@@ -83,22 +116,30 @@ export default async function ProspeccionPage({
           <NuevaProspeccion
             asociados={asociados}
             productos={productos}
-            canales={canales}
+            canales={canalesHabilitados}
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
+        <div className="grid items-start gap-6 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <BandejaProspeccion
               base={RUTA}
               bandeja={bandeja}
               filtro={filtro}
               busqueda={busqueda}
+              seleccionadaId={detalle?.oportunidadId ?? null}
             />
           </div>
 
-          <div className="lg:col-span-3">
-            <PanelDetalle />
+          <div className="space-y-6 lg:col-span-3">
+            {detalle ? (
+              <>
+                <PanelProspeccion detalle={detalle} canales={canalesDelGestor} />
+                <HistorialAsociado gestiones={historial} />
+              </>
+            ) : (
+              <PanelDetalle />
+            )}
           </div>
         </div>
       </div>
