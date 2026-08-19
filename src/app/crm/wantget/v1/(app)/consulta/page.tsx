@@ -1,162 +1,120 @@
-import { PageHeader, periodoVigente } from "@/components/layout/page-header";
-import { Panel } from "@/components/panel";
-import {
-  NavegacionConsulta,
-  esPestana,
-  esRango,
-  type Pestana,
-  type Rango,
-} from "@/components/consulta/navegacion-consulta";
-import { ResultadosComerciales } from "@/components/consulta/resultados-comerciales";
-import { EmbudoProspeccion } from "@/components/consulta/embudo-prospeccion";
+import { PageHeader, periodoVigente, periodoVigenteDb } from "@/components/layout/page-header";
+import { ModuloPendiente } from "@/components/layout/modulo-pendiente";
+import { ConsultaGeneral } from "@/components/consulta/consulta-general";
 import { exigirAcceso } from "@/lib/autorizacion";
 import { BASE_CRM, itemActivo } from "@/lib/navegacion";
-import { nombrePeriodo } from "@/lib/formato";
 import {
-  obtenerResultados,
-  type AlcanceResultados,
-  type RangoPeriodo,
-} from "@/lib/consultas/resultados";
-import { obtenerEmbudo } from "@/lib/consultas/embudo";
-import type { ContextoUsuario } from "@/lib/contexto-usuario";
+  embudo,
+  opcionesFiltro,
+  resultadosComerciales,
+  type FiltroConsulta,
+  type RangoConsulta,
+} from "@/lib/consulta-general";
 
 /**
  * Consulta comercial. Es una sola ruta para Director, Líder y Gestor: el spec
  * la modela como la misma vista con distinto alcance de datos, no como tres
  * pantallas (CRM.docx §5.2, §6.2, §7.2).
  *
- * Por ahora está construida la vista del Gestor. El alcance ya está
- * parametrizado, así que Líder y Director son agregarles sus filtros.
+ * El alcance se arma con `FiltroConsulta`, que combina líder y gestor con AND:
+ * - DIRECTOR: sin filtros fijos, puede elegir líder y gestor.
+ * - LIDER: `liderId` fijo al suyo; elige gestor dentro de su equipo.
+ * - GESTOR: `gestorId` fijo al suyo, sin selectores.
  */
 
-const RUTA = `${BASE_CRM}/consulta`;
+type ConsultaPageProps = {
+  searchParams: Promise<{ lider?: string; gestor?: string; rango?: string }>;
+};
 
-/** Traduce el rol al alcance de datos de la matriz de visibilidad del spec. */
-function alcanceDe(contexto: ContextoUsuario): AlcanceResultados | null {
-  if (!contexto.compania) return null;
-  const companiaId = contexto.compania.id;
-
-  switch (contexto.rol.codigo) {
-    case "GESTOR":
-      return { rol: "GESTOR", companiaId, gestorId: contexto.usuario.id };
-    case "LIDER":
-      return { rol: "LIDER", companiaId, liderId: contexto.usuario.id };
-    case "DIRECTOR":
-      return { rol: "DIRECTOR", companiaId };
-    default:
-      return null;
-  }
+function idDeFiltro(valor: string | undefined) {
+  return valor && valor !== "todos" ? valor : undefined;
 }
 
-/** Rótulo del alcance que se muestra en la banda del panel. */
-function contextoDe(contexto: ContextoUsuario): string {
-  switch (contexto.rol.codigo) {
-    case "GESTOR":
-      return contexto.usuario.nombreCompleto;
-    case "LIDER":
-      return `Equipo de ${contexto.usuario.nombreCompleto}`;
-    default:
-      return "Consolidado compañía";
-  }
-}
-
-export default async function ConsultaPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; rango?: string }>;
-}) {
-  const contexto = await exigirAcceso(RUTA);
-  const { tab, rango: rangoParam } = await searchParams;
-
-  const pestana: Pestana = esPestana(tab) ? tab : "resultados";
-  const rango: Rango = esRango(rangoParam) ? rangoParam : "mes";
+export default async function ConsultaPage({ searchParams }: ConsultaPageProps) {
+  // Segunda barrera de autorización, además del proxy: el spec exige que el
+  // control de alcance por rol no viva solo en la UI.
+  const ruta = `${BASE_CRM}/consulta`;
+  const contexto = await exigirAcceso(ruta);
 
   // El rótulo cambia por rol ("Consulta General" / "Consulta Líder" /
-  // "Consulta Gestor") aunque la ruta y la pantalla sean las mismas.
-  const titulo = itemActivo(contexto.rol.codigo, RUTA)?.etiqueta ?? "Consulta";
+  // "Consulta Gestor") aunque la ruta y la pantalla sean las mismas. Se toma
+  // del config de navegación para no repetirlo.
+  const titulo =
+    itemActivo(contexto.rol.codigo, ruta)?.etiqueta ?? "Consulta";
 
-  // periodoVigente() devuelve 'MM-YYYY' para mostrar; acá se necesita 'YYYY-MM'.
-  const [mesActual, anioActual] = periodoVigente().split("-");
-  const periodo = `${anioActual}-${mesActual}`;
+  const esDirector = contexto.rol.codigo === "DIRECTOR";
+  const esLider = contexto.rol.codigo === "LIDER";
+  const esGestor = contexto.rol.codigo === "GESTOR";
 
-  const alcance = alcanceDe(contexto);
-
-  if (!alcance) {
+  if ((!esDirector && !esLider && !esGestor) || !contexto.compania) {
     return (
       <>
         <PageHeader contexto={contexto} titulo={titulo} />
         <div className="px-8 py-8">
-          <Panel titulo="Resultados comerciales">
-            <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-              Este rol no tiene alcance sobre datos comerciales.
-            </p>
-          </Panel>
-        </div>
-      </>
-    );
-  }
-
-  const rangoConsulta: RangoPeriodo =
-    rango === "mes"
-      ? { tipo: "mes", periodo }
-      : { tipo: "anio", anio: anioActual };
-
-  const navegacion = (
-    <NavegacionConsulta
-      base={RUTA}
-      titulo="Resultados Comerciales"
-      pestana={pestana}
-      rango={rango}
-      periodo={periodo}
-      anio={anioActual}
-    />
-  );
-
-  const alcanceTexto =
-    rango === "mes" ? `de ${nombrePeriodo(periodo)}` : `de ${anioActual}`;
-
-  if (pestana === "embudo") {
-    const embudo = await obtenerEmbudo(alcance, rangoConsulta);
-
-    return (
-      <>
-        <PageHeader contexto={contexto} titulo={titulo} />
-
-        <div className="px-8 py-8">
-          {navegacion}
-
-          <p className="mb-4 text-sm text-muted-foreground">
-            Distribución por etapa de todas las oportunidades {alcanceTexto},
-            abiertas y cerradas.
-          </p>
-
-          <EmbudoProspeccion
-            embudo={embudo}
-            contexto={contextoDe(contexto)}
+          <ModuloPendiente
+            referencia="CRM.docx §1 · PA-01"
+            pendiente="Este rol no tiene alcance definido sobre datos comerciales en la matriz de visibilidad."
           />
         </div>
       </>
     );
   }
 
-  const resultados = await obtenerResultados(alcance, rangoConsulta);
+  const params = await searchParams;
+
+  // Ni el Líder ni el Gestor eligen de quién ver datos: su alcance es fijo. Los
+  // query params solo tienen efecto donde el rol lo permite, así que un
+  // "?gestor=<id-de-otro>" armado a mano no amplía nada.
+  const filtro: FiltroConsulta = esGestor
+    ? { gestorId: contexto.usuario.id }
+    : {
+        liderId: esLider ? contexto.usuario.id : idDeFiltro(params.lider),
+        gestorId: idDeFiltro(params.gestor),
+      };
+
+  const periodo = periodoVigenteDb();
+  const anio = periodo.slice(0, 4);
+  const rango = params.rango === "anio" ? "anio" : "mes";
+  const rangoConsulta: RangoConsulta =
+    rango === "mes" ? { tipo: "mes", periodo } : { tipo: "anio", anio };
+
+  const companiaId = contexto.compania.id;
+
+  const [opciones, resultados, datosEmbudo] = await Promise.all([
+    // El Gestor no usa las opciones, pero pedirlas igual mantiene una sola
+    // forma de llamada; son dos consultas de catálogo acotadas a la compañía.
+    opcionesFiltro(companiaId, esLider ? contexto.usuario.id : undefined),
+    resultadosComerciales(companiaId, filtro, rangoConsulta),
+    embudo(companiaId, filtro, rangoConsulta),
+  ]);
+
+  const alcance = esGestor
+    ? contexto.usuario.nombreCompleto
+    : filtro.gestorId
+      ? (opciones.gestores.find((g) => g.id === filtro.gestorId)?.nombre ?? "Gestor")
+      : esLider
+        ? `Equipo de ${contexto.usuario.nombreCompleto}`
+        : filtro.liderId
+          ? (opciones.lideres.find((l) => l.id === filtro.liderId)?.nombre ?? "Líder")
+          : "Consolidado compañía";
 
   return (
     <>
       <PageHeader contexto={contexto} titulo={titulo} />
-
       <div className="px-8 py-8">
-        {navegacion}
-
-        <p className="mb-4 text-sm text-muted-foreground">
-          {rango === "mes"
-            ? `Ventas cerradas de ${nombrePeriodo(periodo)} contra la meta del mes.`
-            : `Ventas cerradas de ${anioActual} contra la suma de las metas del año.`}
-        </p>
-
-        <ResultadosComerciales
+        <ConsultaGeneral
+          basePath={ruta}
+          opciones={opciones}
+          liderId={esLider ? undefined : filtro.liderId}
+          gestorId={esGestor ? undefined : filtro.gestorId}
+          alcance={alcance}
           resultados={resultados}
-          contexto={contextoDe(contexto)}
+          embudo={datosEmbudo}
+          rango={rango}
+          // periodoVigente() ya devuelve 'MM-YYYY', que es como lo muestra la UI.
+          periodoEtiqueta={periodoVigente()}
+          anio={anio}
+          conSelectores={!esGestor}
         />
       </div>
     </>

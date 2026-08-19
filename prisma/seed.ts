@@ -21,7 +21,7 @@ import {
  *
  * Para probar el login, define en .env (no se versiona):
  *
- *   SEED_OTP_PHONE                   tu número se aplica a los 10 usuarios, así
+ *   SEED_OTP_PHONE                   tu número se aplica a todos los usuarios,
  *                                    se alterna de rol cerrando sesión y
  *                                    entrando con otro correo
  *   SEED_OTP_PHONE + SEED_OTP_EMAIL  solo ese usuario queda con tu número
@@ -91,6 +91,7 @@ const ADMIN_GENERAL: SeedUsuario = {
 };
 
 const USUARIOS: SeedUsuario[] = [
+  { email: "hcardps@wantnget.com.co", nombres: "Harold", apellidos: "Cardoso", numeroIdentificacion: "00000011", rolCodigo: "LIDER", oficina: "NORTE", telefono: "+573022988434" },
   { email: "dorjuela@wantnget.com.co", nombres: "Daniel", apellidos: "Orjuela", numeroIdentificacion: "00000002", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000002" },
   { email: "amunoz@wantnget.com.co", nombres: "Andrés", apellidos: "Muñoz", numeroIdentificacion: "00000003", rolCodigo: "ADMIN_COMPANIA", oficina: null, telefono: "+570000000003" },
   { email: "pperez@wantnget.com.co", nombres: "Pedro", apellidos: "Perez", numeroIdentificacion: "10125142", rolCodigo: "DIRECTOR", oficina: null, telefono: "+570000000004" },
@@ -104,10 +105,14 @@ const USUARIOS: SeedUsuario[] = [
 
 ];
 
-/** Derivado de `datos_semilla.asignacion_gestor_lider` (hojas Ventas y Metas). */
+/**
+ * Derivado de `datos_semilla.asignacion_gestor_lider` (hojas Ventas y Metas),
+ * salvo NORTE: se corrió a hcardps (usuario de pruebas) para poder entrar
+ * como Líder y ver un equipo con datos reales.
+ */
 const ASIGNACIONES_GESTOR_LIDER = [
-  { gestor: "dgonzalez@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
-  { gestor: "pjimenez@wantnget.com.co", lider: "mmartinez@wantnget.com.co" },
+  { gestor: "dgonzalez@wantnget.com.co", lider: "hcardps@wantnget.com.co" },
+  { gestor: "pjimenez@wantnget.com.co", lider: "hcardps@wantnget.com.co" },
   { gestor: "prubio@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
   { gestor: "sramirez@wantnget.com.co", lider: "ccaceres@wantnget.com.co" },
   // No viene del Excel de referencia: usuario de pruebas agregado al seed.
@@ -117,8 +122,15 @@ const ASIGNACIONES_GESTOR_LIDER = [
 /** RN-14: en los datos de referencia cada Líder tiene una sola oficina. */
 const OFICINAS_POR_LIDER = [
   { lider: "mmartinez@wantnget.com.co", oficinas: ["NORTE"] },
+  { lider: "hcardps@wantnget.com.co", oficinas: ["NORTE"] },
   { lider: "ccaceres@wantnget.com.co", oficinas: ["SUR"] },
 ];
+
+// El dataset sintético de la rama de Director (4 asociados y una oportunidad
+// por etapa y producto) se retiró: seedComercial() carga los 56 registros
+// reales de la hoja Ventas, con sus 28 metas y 5 gestores, que es más de lo que
+// aquel cubría. Además duplicaba parejas asociado + producto abiertas, que el
+// índice ux_oportunidad_abierta_asociado_producto (RN-40) ya no admite.
 
 function telefonoDe(usuario: SeedUsuario) {
   const overridePhone = process.env.SEED_OTP_PHONE;
@@ -475,7 +487,12 @@ async function main() {
   for (const usuario of USUARIOS) {
     const registro = await prisma.usuario.upsert({
       where: { email: usuario.email },
-      update: { telefonoWhatsapp: telefonoDe(usuario) },
+      update: {
+        telefonoWhatsapp: telefonoDe(usuario),
+        rolCodigo: usuario.rolCodigo,
+        companiaId: compania.id,
+        oficinaId: usuario.oficina ? oficinas.get(usuario.oficina) : null,
+      },
       create: {
         companiaId: compania.id,
         email: usuario.email,
@@ -589,7 +606,7 @@ async function main() {
     );
   } else {
     console.log(
-      "\nTeléfono de pruebas aplicado a los 10 usuarios: se puede entrar con" +
+      `\nTeléfono de pruebas aplicado a los ${USUARIOS.length + 1} usuarios: se puede entrar con` +
         "\ncualquiera de los correos y el código llega al mismo WhatsApp.",
     );
   }

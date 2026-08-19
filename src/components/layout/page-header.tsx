@@ -15,6 +15,13 @@ export function periodoVigente(ahora: Date = new Date()): string {
   return `${mes}-${local.getUTCFullYear()}`;
 }
 
+/** Mismo periodo vigente, en el formato 'YYYY-MM' que usan las tablas del spec. */
+export function periodoVigenteDb(ahora: Date = new Date()): string {
+  const local = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  const mes = String(local.getUTCMonth() + 1).padStart(2, "0");
+  return `${local.getUTCFullYear()}-${mes}`;
+}
+
 type PageHeaderProps = {
   contexto: ContextoUsuario;
   titulo: string;

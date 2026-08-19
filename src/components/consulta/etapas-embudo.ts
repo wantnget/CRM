@@ -1,4 +1,9 @@
-import type { EtapaEmbudo } from "@/lib/consultas/embudo";
+/**
+ * Las cuatro etapas que se muestran. Se declaran acá y no se importan de una
+ * consulta, para que la píldora de la bandeja de Prospección no dependa del
+ * módulo de Consulta.
+ */
+export type EtapaEmbudo = "CONTACTO" | "OFERTA" | "VENTA" | "NO_VENTA";
 
 /**
  * Presentación de las cuatro etapas del embudo.

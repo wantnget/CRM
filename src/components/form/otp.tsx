@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Loader } from "lucide-react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { Button } from "@/components/ui/button";
@@ -10,26 +11,56 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { OTP_EXPIRES_IN_SECONDS } from "@/lib/otp-config";
 
 type OtpFormProps = {
   email: string;
   phone?: string | null;
+  sentAt: number | null;
   isPending: boolean;
   error: string | null;
   fieldError?: string;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onUseAnotherEmail: () => void;
+  onResend: () => void;
 };
+
+function useOtpCountdown(sentAt: number | null) {
+  const [secondsLeft, setSecondsLeft] = useState(OTP_EXPIRES_IN_SECONDS);
+
+  useEffect(() => {
+    if (!sentAt) return;
+
+    const tick = () => {
+      const transcurridos = Math.floor((Date.now() - sentAt) / 1000);
+      setSecondsLeft(Math.max(OTP_EXPIRES_IN_SECONDS - transcurridos, 0));
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [sentAt]);
+
+  return secondsLeft;
+}
 
 export function OtpForm({
   email,
   phone,
+  sentAt,
   isPending,
   error,
   fieldError,
   onSubmit,
   onUseAnotherEmail,
+  onResend,
 }: OtpFormProps) {
+  const secondsLeft = useOtpCountdown(sentAt);
+  const expired = secondsLeft <= 0;
+  const minutos = Math.floor(secondsLeft / 60);
+  const segundos = secondsLeft % 60;
+  const tiempoRestante = `${minutos}:${segundos.toString().padStart(2, "0")}`;
+
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
 
@@ -46,13 +77,22 @@ export function OtpForm({
           ) : null}
           .
         </p>
+        <p
+          className={
+            expired
+              ? "text-sm font-medium text-destructive"
+              : "text-sm text-muted-foreground"
+          }
+        >
+          {expired ? "El código expiró." : `Expira en ${tiempoRestante}`}
+        </p>
         <InputOTP
           maxLength={6}
           name="otp"
           id="otp"
           inputMode="numeric"
           pattern={REGEXP_ONLY_DIGITS}
-          disabled={isPending}
+          disabled={isPending || expired}
           containerClassName="mt-2 justify-center"
         >
           <InputOTPGroup>
@@ -93,21 +133,33 @@ export function OtpForm({
         </InputOTP>
       </div>
 
-      <Button
-        type="submit"
-        size="lg"
-        className="mt-2 h-11 bg-[#0f2b46] text-white hover:bg-[#0f2b46]/90"
-        disabled={isPending}
-      >
-        {isPending ? (
-          <>
-            <Loader className="size-4.5 animate-spin" />
-            Verificando…
-          </>
-        ) : (
-          "Confirmar código"
-        )}
-      </Button>
+      {expired ? (
+        <Button
+          type="button"
+          size="lg"
+          onClick={onResend}
+          disabled={isPending}
+          className="mt-2 h-11 bg-[#0f2b46] text-white hover:bg-[#0f2b46]/90"
+        >
+          Reenviar código
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          size="lg"
+          className="mt-2 h-11 bg-[#0f2b46] text-white hover:bg-[#0f2b46]/90"
+          disabled={isPending}
+        >
+          {isPending ? (
+            <>
+              <Loader className="size-4.5 animate-spin" />
+              Verificando…
+            </>
+          ) : (
+            "Confirmar código"
+          )}
+        </Button>
+      )}
 
       <button
         type="button"

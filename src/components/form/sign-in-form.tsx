@@ -16,7 +16,9 @@ export function SignInForm() {
     step,
     email,
     phoneHint,
+    sentAt,
     sendCode,
+    resendCode,
     verifyCode,
     reset,
     isPending,
@@ -41,11 +43,13 @@ export function SignInForm() {
       <OtpForm
         email={email}
         phone={phoneHint}
+        sentAt={sentAt}
         isPending={isPending}
         error={error}
         fieldError={fieldErrors.otp}
         onSubmit={handleOtpSubmit}
         onUseAnotherEmail={reset}
+        onResend={resendCode}
       />
     );
   }

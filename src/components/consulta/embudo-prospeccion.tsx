@@ -1,116 +1,142 @@
-import { cn } from "@/lib/utils";
-import { Panel } from "@/components/panel";
-import { formatearCantidad } from "@/lib/formato";
-import { ETAPAS } from "@/components/consulta/etapas-embudo";
-import { TarjetaEmbudo } from "@/components/consulta/tarjeta-embudo";
-import type { Embudo } from "@/lib/consultas/embudo";
+import type { ConteoEmbudo, Embudo, EmbudoProducto } from "@/lib/consulta-general";
 
 /**
- * Embudo de prospección: la distribución global y una tarjeta por producto.
+ * Embudo de prospección.
  *
- * La barra de arriba es una sola barra apilada al 100%, segmentada por etapa.
- * Lleva 2px de separación entre tramos para que no se lean como uno solo, y
- * cada tramo suficientemente ancho muestra su porcentaje encima; los angostos lo
- * dejan al tooltip y a las cifras de abajo, que están siempre visibles.
+ * Los colores salen de los tokens `--etapa-*` de globals.css y no de la guía de
+ * estilo directa: el verde #22C55E de la guía queda a ΔE 5,7 del naranja bajo
+ * protanopia, por debajo del piso de 6, así que el token usa #059669 (ΔE 13,0).
+ * El resto de los pares adyacentes ya pasaba.
  */
 
-/** Un tramo estrecho no aguanta la etiqueta dentro sin recortarla. */
-const MINIMO_PARA_ETIQUETA = 8;
-
-function Leyenda() {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-      {ETAPAS.map((etapa) => (
-        <span key={etapa.id} className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className={cn("size-2.5 rounded-sm", etapa.fondo)}
-          />
-          {etapa.etiqueta}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function BarraApilada({ embudo }: { embudo: Embudo }) {
-  const tramos = ETAPAS.map((etapa) => ({
-    etapa,
-    valor: embudo.totales[etapa.id],
-    porcentaje: embudo.total > 0 ? (embudo.totales[etapa.id] / embudo.total) * 100 : 0,
-  })).filter((t) => t.valor > 0);
-
-  return (
-    <div className="flex h-8 gap-0.5 overflow-hidden rounded-lg">
-      {tramos.map(({ etapa, valor, porcentaje }) => (
-        <div
-          key={etapa.id}
-          className={cn(
-            "flex items-center justify-center text-[11px] font-semibold text-white",
-            etapa.fondo,
-          )}
-          style={{ width: `${porcentaje}%` }}
-          title={`${etapa.etiqueta}: ${formatearCantidad(valor)} (${Math.round(porcentaje)}%)`}
-        >
-          {porcentaje >= MINIMO_PARA_ETIQUETA
-            ? `${Math.round(porcentaje)}%`
-            : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function EmbudoProspeccion({
-  embudo,
-  contexto,
-}: {
+type EmbudoProspeccionProps = {
   embudo: Embudo;
-  /** Alcance de los datos: el gestor, el equipo del líder o la compañía. */
-  contexto: string;
-}) {
-  if (embudo.total === 0) {
-    return (
-      <Panel titulo="Embudo de prospección" meta={<Leyenda />}>
-        <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-          No hay oportunidades registradas para este periodo.
-        </p>
-      </Panel>
-    );
-  }
+};
+
+const ETAPAS: {
+  clave: keyof ConteoEmbudo;
+  etiqueta: string;
+  color: string;
+}[] = [
+  { clave: "contacto", etiqueta: "Contacto", color: "bg-want-navy" },
+  { clave: "oferta", etiqueta: "Oferta", color: "bg-want-naranja" },
+  { clave: "ventaFinal", etiqueta: "Finaliza – Venta", color: "bg-etapa-venta" },
+  { clave: "noVentaFinal", etiqueta: "Finaliza – No Venta", color: "bg-etapa-no-venta" },
+];
+
+function totalDe(conteo: ConteoEmbudo) {
+  return conteo.contacto + conteo.oferta + conteo.ventaFinal + conteo.noVentaFinal;
+}
+
+function BarraGlobal({ conteo }: { conteo: ConteoEmbudo }) {
+  const total = totalDe(conteo);
 
   return (
-    <div className="space-y-6">
-      <Panel titulo="Embudo de prospección" meta={<Leyenda />}>
-        <div className="px-6 py-6">
-          <BarraApilada embudo={embudo} />
+    <div className="flex h-9 w-full overflow-hidden rounded-lg">
+      {ETAPAS.map(({ clave, color }) => {
+        const valor = conteo[clave];
+        if (valor === 0) return null;
+        const porcentaje = total > 0 ? (valor / total) * 100 : 0;
 
-          <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {ETAPAS.map((etapa) => (
-              <div key={etapa.id}>
-                <dt className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  {etapa.etiqueta}
-                </dt>
-                <dd
-                  className={cn("mt-0.5 text-2xl font-bold", etapa.texto)}
-                >
-                  {formatearCantidad(embudo.totales[etapa.id])}
-                </dd>
+        return (
+          <div
+            key={clave}
+            className={`flex items-center justify-center text-xs font-semibold text-white transition-[width] duration-700 ease-out ${color}`}
+            style={{ width: `${porcentaje}%` }}
+          >
+            {porcentaje >= 8 ? `${Math.round(porcentaje)}%` : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TarjetaProducto({ producto }: { producto: EmbudoProducto }) {
+  const { conteo } = producto;
+  const total = totalDe(conteo);
+  const activos = conteo.contacto + conteo.oferta;
+  const maximo = Math.max(conteo.contacto, conteo.oferta, conteo.ventaFinal, conteo.noVentaFinal, 1);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-want-navy">{producto.nombre}</p>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {total} oportunidad(es)
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-2">
+        {ETAPAS.map(({ clave, etiqueta, color }) => {
+          const valor = conteo[clave];
+          const ancho = (valor / maximo) * 100;
+
+          return (
+            <div key={clave} className="flex items-center gap-2">
+              <span className="w-28 shrink-0 text-xs text-muted-foreground">{etiqueta}</span>
+              <div className="h-2 flex-1 rounded-full bg-muted">
+                {valor > 0 ? (
+                  <div
+                    className={`h-full rounded-full transition-[width] duration-700 ease-out ${color}`}
+                    style={{ width: `${ancho}%` }}
+                  />
+                ) : null}
+              </div>
+              <span className="w-6 shrink-0 text-right text-xs font-medium text-foreground">
+                {valor}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        {activos} activo(s) en contacto u oferta
+      </p>
+    </div>
+  );
+}
+
+export function EmbudoProspeccion({ embudo }: EmbudoProspeccionProps) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between bg-want-navy px-5 py-3 text-white">
+          {/* El conteo incluye las cerradas: etapaDe() las reparte en venta y no
+              venta, así que el rótulo no puede decir "solo Prospección". */}
+          <p className="text-sm font-semibold">
+            Embudo de prospección · abiertas y cerradas del periodo
+          </p>
+          <div className="flex items-center gap-4 text-xs">
+            {ETAPAS.map(({ clave, etiqueta, color }) => (
+              <span key={clave} className="flex items-center gap-1.5">
+                <span className={`h-1.5 w-3 rounded-full ${color}`} />
+                {etiqueta}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-5">
+          <BarraGlobal conteo={embudo.global} />
+
+          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {ETAPAS.map(({ clave, etiqueta }) => (
+              <div key={clave}>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  {etiqueta}
+                </p>
+                <p className="mt-1 text-xl font-bold text-want-navy">{embudo.global[clave]}</p>
               </div>
             ))}
-          </dl>
-
-          <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
-            {formatearCantidad(embudo.total)} oportunidad(es) en total ·{" "}
-            {formatearCantidad(embudo.activas)} activa(s) en contacto u oferta ·{" "}
-            {contexto}
-          </p>
+          </div>
         </div>
-      </Panel>
+      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {embudo.productos.map((producto) => (
-          <TarjetaEmbudo key={producto.productoCodigo} producto={producto} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {embudo.porProducto.map((producto) => (
+          <TarjetaProducto key={producto.codigo} producto={producto} />
         ))}
       </div>
     </div>

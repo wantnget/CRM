@@ -5,9 +5,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppOTP } from "@/lib/truora";
 import { proximoCierreProgramado } from "@/lib/sesion";
-
-// RN-21 / CRM.docx §3.1: el código es válido por máximo 2 minutos.
-const OTP_EXPIRES_IN_SECONDS = 2 * 60;
+import { OTP_EXPIRES_IN_SECONDS } from "@/lib/otp-config";
 
 // RN-25: máximo 5 intentos fallidos por código.
 const OTP_ALLOWED_ATTEMPTS = 5;

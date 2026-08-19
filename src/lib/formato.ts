@@ -58,3 +58,27 @@ export function nombrePeriodo(periodo: string): string {
   const [anio, mes] = periodo.split("-");
   return `${MESES[Number(mes) - 1] ?? mes} ${anio}`;
 }
+
+/**
+ * Alias de los nombres que usa el módulo de Director/Líder y el de Metas. Son
+ * las mismas reglas de formato: se exponen con los dos nombres en vez de
+ * mantener dos implementaciones que puedan divergir.
+ */
+export const formatoUnidades = formatearCantidad;
+export const formatoMonto = formatearMoneda;
+export const formatoPorUnidadMedida = formatearValor;
+
+const FECHA_HORA = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "America/Bogota",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+/** Fecha y hora en Bogotá, para sellos de cargue y bitácoras. */
+export function formatoFechaHora(fecha: Date): string {
+  return FECHA_HORA.format(fecha).replace(",", "");
+}
