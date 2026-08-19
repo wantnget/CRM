@@ -58,12 +58,12 @@ export function useSoftphone() {
     return device;
   }, []);
 
-  const llamar = useCallback(async () => {
+  const llamar = useCallback(async (destino: string) => {
     setEstado("conectando");
 
     try {
       const device = await obtenerDevice();
-      const call = await device.connect();
+      const call = await device.connect({ params: { To: destino } });
       callRef.current = call;
 
       call.on("ringing", () => setEstado("timbrando"));

@@ -4,11 +4,17 @@ import twilio from "twilio";
 
 const API_BASE = "https://api.twilio.com/2010-04-01/Accounts";
 
-export async function enviarWhatsApp(cuerpo: string) {
+export async function enviarWhatsApp({
+  destinatario,
+  cuerpo,
+}: {
+  destinatario: string;
+  cuerpo: string;
+}) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_WHATSAPP_FROM;
-  const to = process.env.TWILIO_WHATSAPP_TEST_TO;
+  const to = destinatario;
 
   if (!accountSid || !authToken || !from || !to) {
     throw new Error("Faltan variables de entorno de Twilio WhatsApp");
@@ -78,9 +84,8 @@ export function crearTokenVoz(email: string) {
   return token.toJwt();
 }
 
-export function twimlLlamada() {
+export function twimlLlamada(destino: string) {
   const callerId = process.env.TWILIO_CALLER_ID;
-  const destino = process.env.TWILIO_CALL_TEST_TO;
 
   if (!callerId || !destino) {
     throw new Error("Faltan variables de entorno de Twilio Voz");

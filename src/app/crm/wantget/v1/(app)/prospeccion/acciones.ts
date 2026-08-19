@@ -109,7 +109,7 @@ const SELECCION_EDICION = {
   monto: true,
   resultadoCierre: true,
   producto: { select: { unidadMedida: true } },
-  asociado: { select: { nombreCompleto: true, email: true } },
+  asociado: { select: { nombreCompleto: true, email: true, telefonoWhatsapp: true } },
 } as const;
 
 /**
@@ -422,12 +422,20 @@ export async function registrarGestion(
     };
   }
 
-  // El correo va al email real del asociado: sin uno cargado no hay a dónde
-  // enviarlo, así que se rechaza antes de registrar la gestión.
+  // El correo y el WhatsApp van al contacto real del asociado: sin uno
+  // cargado no hay a dónde enviarlo, así que se rechaza antes de registrar la
+  // gestión.
   if (canal.codigo === "CORREO_SALIDA" && !oportunidad.asociado.email) {
     return {
       ok: false,
       mensaje: "Este asociado no tiene correo registrado.",
+    };
+  }
+
+  if (canal.codigo === "WA_SALIDA" && !oportunidad.asociado.telefonoWhatsapp) {
+    return {
+      ok: false,
+      mensaje: "Este asociado no tiene WhatsApp registrado.",
     };
   }
 
@@ -484,7 +492,10 @@ export async function registrarGestion(
   // quedó registrada (es la fuente de verdad) y solo se avisa del error de envío.
   if (canal.codigo === "WA_SALIDA") {
     try {
-      await enviarWhatsApp(datos.observacion);
+      await enviarWhatsApp({
+        destinatario: oportunidad.asociado.telefonoWhatsapp!,
+        cuerpo: datos.observacion,
+      });
     } catch (error) {
       console.error("[registrarGestion] envío WhatsApp", error);
       revalidatePath(RUTA);
