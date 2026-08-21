@@ -1,5 +1,6 @@
 import { HORA_CIERRE_POR_DEFECTO } from "@/lib/sesion";
 import type { ContextoUsuario } from "@/lib/contexto-usuario";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 /**
  * Encabezado de módulo: eyebrow con la compañía, título, y a la derecha el
@@ -43,28 +44,41 @@ export function PageHeader({ contexto, titulo }: PageHeaderProps) {
     contexto.compania?.horaCierreSesion ?? HORA_CIERRE_POR_DEFECTO;
 
   return (
-    <header className="border-b border-border bg-background px-8 py-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
-            {eyebrow}
-          </p>
-          <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-want-navy">
-            {titulo}
-          </h1>
-        </div>
+    <header className="sticky top-0 z-20 border-b border-border bg-background px-4 py-3 sm:px-8 sm:py-5">
+      <div className="flex items-start gap-2">
+        <SidebarTrigger className="-ml-1 mt-0.5 shrink-0 md:hidden" />
 
-        <div className="flex items-center gap-3 text-xs">
-          <span className="flex items-center gap-1.5 rounded-full border border-want-naranja/40 bg-want-naranja/5 px-2.5 py-1 font-medium text-want-navy">
-            <span className="size-1.5 rounded-full bg-want-verde" />
-            Periodo {periodoVigente()}
-          </span>
-          <span className="text-muted-foreground">
-            Cierre automático {horaCierre}
-          </span>
+        {/* En móvil el título y la meta se apilan dentro de esta columna, así
+            comparten el borde izquierdo en vez de desalinearse por el ancho del
+            trigger. En sm+ el trigger no se renderiza y la columna vuelve a ser
+            la fila con justify-between del diseño de escritorio. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            {/* truncate: para los roles con compañía el eyebrow es
+                'razonSocial · rol', que en 375px se envolvería a dos o tres
+                líneas y estiraría un header que es sticky. */}
+            <p className="truncate text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">
+              {eyebrow}
+            </p>
+            <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-want-navy">
+              {titulo}
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:shrink-0">
+            <span className="flex items-center gap-1.5 rounded-full border border-want-naranja/40 bg-want-naranja/5 px-2.5 py-1 font-medium text-want-navy">
+              <span
+                aria-hidden
+                className="size-1.5 rounded-full bg-want-verde"
+              />
+              Periodo {periodoVigente()}
+            </span>
+            <span className="text-muted-foreground">
+              Cierre automático {horaCierre}
+            </span>
+          </div>
         </div>
       </div>
-
     </header>
   );
 }
