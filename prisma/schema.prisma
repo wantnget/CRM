@@ -61,6 +61,14 @@ enum MedioComunicacion {
   TELEFONO
 }
 
+enum EstadoMensaje {
+  PENDIENTE
+  ENVIADO
+  ENTREGADO
+  LEIDO
+  FALLIDO
+}
+
 enum TipoCierreSesion {
   MANUAL
   AUTOMATICO
@@ -177,6 +185,8 @@ model Compania {
   usuarioCanales  UsuarioCanal[]
   asignacionesGestorLider AsignacionGestorLider[]
   asignacionesAsociado    AsignacionAsociado[]
+  conversaciones  Conversacion[]
+  mensajes        Mensaje[]
 
   @@index([estado])
   @@map("compania")
@@ -254,6 +264,8 @@ model Usuario {
   metasComoLider           Meta[]                  @relation("LiderEnMeta")
   carguesArchivo           CargueArchivo[]
   auditorias               Auditoria[]
+  conversaciones           Conversacion[]
+  mensajes                 Mensaje[]
 
   @@unique([companiaId, numeroIdentificacion])
   @@index([companiaId, rolCodigo, estado])
@@ -414,9 +426,10 @@ model Asociado {
 
   compania      Compania             @relation(fields: [companiaId], references: [id])
   oficina       Oficina              @relation(fields: [oficinaId], references: [id])
-  asignaciones  AsignacionAsociado[]
-  oportunidades Oportunidad[]
-  gestiones     Gestion[]
+  asignaciones   AsignacionAsociado[]
+  oportunidades  Oportunidad[]
+  gestiones      Gestion[]
+  conversaciones Conversacion[]
 
   @@unique([companiaId, numeroIdentificacion])
   @@index([oficinaId])
@@ -497,11 +510,14 @@ model Gestion {
   etapa              EtapaProspeccion
   canalCodigo        String?                @map("canal_codigo") @db.VarChar(30)
   direccion          DireccionComunicacion?
+  asunto             String?                @db.VarChar(200)
   contenido          String?
   observacion        String?
   resultadoContacto  ResultadoContacto?     @map("resultado_contacto")
   proximoContactoAt  DateTime?              @map("proximo_contacto_at") @db.Timestamptz(6)
   mensajeExternoId   String?                @map("mensaje_externo_id") @db.VarChar(120)
+  eliminadoAt        DateTime?              @map("eliminado_at") @db.Timestamptz(6)
+  eliminadoBy        String?                @map("eliminado_by") @db.Uuid
   createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy          String                 @map("created_by") @db.Uuid
 
@@ -516,6 +532,56 @@ model Gestion {
   @@index([gestorId, fechaHora])
   @@map("gestion")
 }
+/// Conversación de WhatsApp entre un Gestor y un Asociado, espejo del chat que
+/// Truora mantiene del otro lado. `truoraChatId` se guarda para no tener que
+/// buscarlo en /engagement/chat/search en cada envío, y `ventanaExpiraAt` es el
+/// cierre de la ventana de 24 h: fuera de ella WhatsApp solo admite plantilla,
+/// no texto libre.
+model Conversacion {
+  id              String    @id @default(uuid()) @db.Uuid
+  companiaId      String    @map("compania_id") @db.Uuid
+  asociadoId      String    @map("asociado_id") @db.Uuid
+  gestorId        String    @map("gestor_id") @db.Uuid
+  truoraChatId    String?   @unique @map("truora_chat_id") @db.VarChar(60)
+  ventanaExpiraAt DateTime? @map("ventana_expira_at") @db.Timestamptz(6)
+  ultimoMensajeAt DateTime? @map("ultimo_mensaje_at") @db.Timestamptz(6)
+  noLeidos        Int       @default(0) @map("no_leidos")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy       String    @map("created_by") @db.Uuid
+  updatedAt       DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  compania Compania  @relation(fields: [companiaId], references: [id])
+  asociado Asociado  @relation(fields: [asociadoId], references: [id])
+  gestor   Usuario   @relation(fields: [gestorId], references: [id])
+  mensajes Mensaje[]
+
+  @@unique([asociadoId, gestorId])
+  @@index([companiaId, gestorId, ultimoMensajeAt])
+  @@map("conversacion")
+}
+
+/// Mensaje individual de una conversación de WhatsApp. `truoraMessageId` es la
+/// llave del proveedor y sirve para descartar reenvíos del webhook.
+model Mensaje {
+  id              String                @id @default(uuid()) @db.Uuid
+  companiaId      String                @map("compania_id") @db.Uuid
+  conversacionId  String                @map("conversacion_id") @db.Uuid
+  direccion       DireccionComunicacion
+  cuerpo          String
+  estado          EstadoMensaje         @default(ENVIADO)
+  truoraMessageId String?               @unique @map("truora_message_id") @db.VarChar(120)
+  /// Nulo en los entrantes: los escribe el asociado, no un usuario del CRM.
+  gestorId        String?               @map("gestor_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  compania     Compania     @relation(fields: [companiaId], references: [id])
+  conversacion Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  gestor       Usuario?     @relation(fields: [gestorId], references: [id])
+
+  @@index([conversacionId, createdAt])
+  @@map("mensaje")
+}
+
 model Meta {
   id             String    @id @default(uuid()) @db.Uuid
   companiaId     String    @map("compania_id") @db.Uuid

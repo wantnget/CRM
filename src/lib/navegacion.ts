@@ -144,6 +144,7 @@ export const NAVEGACION: Record<RolCodigo, GrupoNavegacion[]> = {
           subitems: [
             { etiqueta: "Email", href: `${BASE_CRM}/comunicacion/email` },
             { etiqueta: "WhatsApp", href: `${BASE_CRM}/comunicacion/whatsapp` },
+            { etiqueta: "Llamadas", href: `${BASE_CRM}/comunicacion/llamadas` },
           ],
         },
       ],

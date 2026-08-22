@@ -10,6 +10,7 @@ import {
 } from "@/components/form/campos";
 import { LlamadaModal } from "@/components/prospeccion/llamada-modal";
 import { useSoftphone } from "@/hooks/use-softphone";
+import { formatoDuracion } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { ETAPAS } from "@/lib/validaciones/prospeccion";
 import type { CanalDelGestor, DetalleProspeccion } from "@/lib/consultas/detalle";
@@ -332,7 +333,7 @@ function FormularioLlamada({
             )}
           >
             {estado === "en_llamada"
-              ? formatearDuracion(duracion)
+              ? formatoDuracion(duracion)
               : ETIQUETA_ESTADO_LLAMADA[estado]}
           </span>
         ) : null}
@@ -374,7 +375,7 @@ function FormularioLlamada({
             canal={canal}
             onExito={onCerrar}
             placeholder="Describa el resultado de la llamada..."
-            prefijoObservacion={`[Llamada ${formatearDuracion(duracion)}] `}
+            prefijoObservacion={`[Llamada ${formatoDuracion(duracion)}] `}
           />
         </div>
       ) : null}
@@ -382,10 +383,3 @@ function FormularioLlamada({
   );
 }
 
-function formatearDuracion(segundos: number) {
-  const m = Math.floor(segundos / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = (segundos % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}

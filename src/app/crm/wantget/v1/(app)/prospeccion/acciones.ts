@@ -1,10 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { obtenerContextoUsuario } from "@/lib/contexto-usuario";
-import { ipDeLaSolicitud, registrarAuditoria } from "@/lib/auditoria";
+import { registrarAuditoria } from "@/lib/auditoria";
+import {
+  NO_AUTORIZADO,
+  erroresDeZod,
+  exigirGestor,
+  type ContextoGestor,
+} from "@/lib/acciones/gestor";
 import { mapearDuplicado } from "@/lib/errores-prisma";
 import { BASE_CRM } from "@/lib/navegacion";
 import { enviarCorreo, enviarWhatsApp } from "@/lib/twilio";
@@ -25,41 +29,6 @@ import {
  */
 
 const RUTA = `${BASE_CRM}/prospeccion`;
-
-type Contexto = {
-  gestorId: string;
-  companiaId: string;
-  oficinaId: string | null;
-  ip: string | null;
-};
-
-const NO_AUTORIZADO: ResultadoAccion = {
-  ok: false,
-  mensaje: "No tienes permiso para realizar esta acción.",
-};
-
-async function exigirGestor(): Promise<Contexto | null> {
-  const contexto = await obtenerContextoUsuario();
-  if (!contexto) return null;
-  if (contexto.rol.codigo !== "GESTOR") return null;
-  if (!contexto.compania) return null;
-
-  return {
-    gestorId: contexto.usuario.id,
-    companiaId: contexto.compania.id,
-    oficinaId: contexto.oficina?.id ?? null,
-    ip: await ipDeLaSolicitud(),
-  };
-}
-
-function erroresDeZod(error: z.ZodError): Record<string, string> {
-  const errores: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const campo = issue.path.join(".") || "general";
-    errores[campo] ??= issue.message;
-  }
-  return errores;
-}
 
 /**
  * Periodo 'YYYY-MM' de una fecha en Bogotá. Colombia es UTC-5 y no aplica
@@ -120,7 +89,7 @@ const SELECCION_EDICION = {
  * una NO_VENTA se retoma creando una oportunidad nueva (RN-41), nunca editando
  * la anterior.
  */
-async function cargarEditable(ctx: Contexto, oportunidadId: string) {
+async function cargarEditable(ctx: ContextoGestor, oportunidadId: string) {
   const oportunidad = await prisma.oportunidad.findFirst({
     where: { id: oportunidadId, companiaId: ctx.companiaId, gestorId: ctx.gestorId },
     select: SELECCION_EDICION,

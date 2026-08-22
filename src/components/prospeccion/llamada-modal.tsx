@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Phone, PhoneOff } from "lucide-react";
+import { formatoDuracion } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import type { EstadoLlamada } from "@/hooks/use-softphone";
 
@@ -21,14 +22,6 @@ const ETIQUETA_ESTADO: Record<EstadoLlamada, string> = {
   en_llamada: "En llamada",
   error: "No se pudo conectar",
 };
-
-function formatearDuracion(segundos: number) {
-  const m = Math.floor(segundos / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = (segundos % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}
 
 export function LlamadaModal({
   estado,
@@ -132,7 +125,7 @@ export function LlamadaModal({
             )}
           >
             {estado === "en_llamada"
-              ? formatearDuracion(duracion)
+              ? formatoDuracion(duracion)
               : ETIQUETA_ESTADO[estado]}
           </p>
         </div>
