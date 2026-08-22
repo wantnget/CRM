@@ -39,7 +39,7 @@ export default async function MetasPage({ searchParams }: MetasPageProps) {
   return (
     <>
       <PageHeader contexto={contexto} titulo="Metas" />
-      <div className="flex flex-col gap-6 px-8 py-8">
+      <div className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <FiltrosConsulta
           basePath={ruta}
           opciones={opciones}

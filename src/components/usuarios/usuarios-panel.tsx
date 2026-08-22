@@ -56,7 +56,7 @@ function administrableAqui(rolCodigo: string) {
 }
 
 const BASE_BOTON =
-  "inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex min-h-11 flex-1 items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-50 lg:min-h-0 lg:flex-none";
 
 function AccionesUsuario({
   fila,
@@ -76,7 +76,7 @@ function AccionesUsuario({
     : "Las cuentas de Administrador de Compañía las gestiona el Administrador General";
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center gap-2 lg:justify-end">
       <button
         type="button"
         onClick={onEditar}
@@ -169,6 +169,7 @@ export function UsuariosPanel({
     {
       id: "usuario",
       encabezado: "Usuario",
+      movil: "titulo",
       celda: (u) => (
         <div className="min-w-0">
           <p className="font-medium text-foreground">
@@ -219,12 +220,14 @@ export function UsuariosPanel({
     {
       id: "estado",
       encabezado: "Estado",
+      movil: "insignia",
       celda: (u) => <EstadoPill estado={u.estado} />,
     },
     {
       id: "acciones",
       encabezado: "Acción",
       alineacion: "derecha",
+      movil: "pie",
       celda: (u) => (
         <AccionesUsuario fila={u} onEditar={() => abrirEdicion(u)} />
       ),

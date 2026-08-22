@@ -2,18 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogoFormulario } from "@/components/form/dialogo-formulario";
 import {
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
   CLASE_CAMPO,
-  CLASE_ETIQUETA,
   Campo,
   ErrorGeneral,
 } from "@/components/form/campos";
@@ -120,141 +113,136 @@ function Formulario({
     });
   }
 
+  const pie = (
+    <>
+      <button
+        type="button"
+        onClick={onCerrar}
+        disabled={enviando}
+        className={BOTON_SECUNDARIO}
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        disabled={enviando || bloqueado}
+        className={BOTON_PRIMARIO}
+      >
+        {enviando ? "Abriendo..." : "Abrir prospección"}
+      </button>
+    </>
+  );
+
   return (
-    <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
-        <DialogHeader className="border-b border-border px-6 py-5 text-left">
-          <p className={CLASE_ETIQUETA}>Prospección</p>
-          <DialogTitle className="text-xl font-semibold text-want-navy">
-            Nueva prospección
-          </DialogTitle>
-        </DialogHeader>
+    <DialogoFormulario
+      etiqueta="Prospección"
+      titulo="Nueva prospección"
+      pie={pie}
+      onCerrar={onCerrar}
+      onSubmit={enviar}
+    >
+      <Campo
+        etiqueta="Asociado"
+        error={errores.asociadoId}
+        ayuda={
+          sinAsociados
+            ? undefined
+            : "Solo aparecen los asociados que tu Líder te asignó."
+        }
+      >
+        {sinAsociados ? (
+          <p className={CLASE_NOTA}>
+            No tienes asociados asignados. Tu Líder debe asignarte
+            asociados antes de que puedas abrir una prospección.
+          </p>
+        ) : (
+          <select
+            className={CLASE_CAMPO}
+            value={datos.asociadoId}
+            onChange={(e) => cambiar("asociadoId", e.target.value)}
+            required
+          >
+            <option value="">Selecciona un asociado</option>
+            {asociados.map((asociado) => (
+              <option key={asociado.id} value={asociado.id}>
+                {asociado.nombreCompleto} — {asociado.numeroIdentificacion}
+              </option>
+            ))}
+          </select>
+        )}
+      </Campo>
 
-        <form onSubmit={enviar}>
-          <div className="space-y-5 px-6 py-6">
-            <Campo
-              etiqueta="Asociado"
-              error={errores.asociadoId}
-              ayuda={
-                sinAsociados
-                  ? undefined
-                  : "Solo aparecen los asociados que tu Líder te asignó."
-              }
-            >
-              {sinAsociados ? (
-                <p className={CLASE_NOTA}>
-                  No tienes asociados asignados. Tu Líder debe asignarte
-                  asociados antes de que puedas abrir una prospección.
-                </p>
-              ) : (
-                <select
-                  className={CLASE_CAMPO}
-                  value={datos.asociadoId}
-                  onChange={(e) => cambiar("asociadoId", e.target.value)}
-                  required
-                >
-                  <option value="">Selecciona un asociado</option>
-                  {asociados.map((asociado) => (
-                    <option key={asociado.id} value={asociado.id}>
-                      {asociado.nombreCompleto} — {asociado.numeroIdentificacion}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Campo>
+      <Campo etiqueta="Producto" error={errores.productoCodigo}>
+        <select
+          className={CLASE_CAMPO}
+          value={datos.productoCodigo}
+          onChange={(e) => cambiar("productoCodigo", e.target.value)}
+          disabled={bloqueado}
+          required
+        >
+          {productos.map((producto) => (
+            <option key={producto.codigo} value={producto.codigo}>
+              {producto.nombre}
+            </option>
+          ))}
+        </select>
+      </Campo>
 
-            <Campo etiqueta="Producto" error={errores.productoCodigo}>
-              <select
-                className={CLASE_CAMPO}
-                value={datos.productoCodigo}
-                onChange={(e) => cambiar("productoCodigo", e.target.value)}
-                disabled={bloqueado}
-                required
-              >
-                {productos.map((producto) => (
-                  <option key={producto.codigo} value={producto.codigo}>
-                    {producto.nombre}
-                  </option>
-                ))}
-              </select>
-            </Campo>
+      <Campo
+        etiqueta="Canal del primer contacto"
+        error={errores.canalCodigo}
+        ayuda={
+          sinCanales
+            ? undefined
+            : "Queda registrado como la primera gestión de la prospección."
+        }
+      >
+        {sinCanales ? (
+          <p className={CLASE_NOTA}>
+            No tienes canales de comunicación habilitados. El Administrador
+            de tu compañía los habilita desde la pantalla de Usuarios.
+          </p>
+        ) : (
+          <select
+            className={CLASE_CAMPO}
+            value={datos.canalCodigo}
+            onChange={(e) => cambiar("canalCodigo", e.target.value)}
+            disabled={sinAsociados}
+            required
+          >
+            <option value="">Selecciona un canal</option>
+            {canales.map((canal) => (
+              <option key={canal.codigo} value={canal.codigo}>
+                {canal.nombre}
+              </option>
+            ))}
+          </select>
+        )}
+      </Campo>
 
-            <Campo
-              etiqueta="Canal del primer contacto"
-              error={errores.canalCodigo}
-              ayuda={
-                sinCanales
-                  ? undefined
-                  : "Queda registrado como la primera gestión de la prospección."
-              }
-            >
-              {sinCanales ? (
-                <p className={CLASE_NOTA}>
-                  No tienes canales de comunicación habilitados. El Administrador
-                  de tu compañía los habilita desde la pantalla de Usuarios.
-                </p>
-              ) : (
-                <select
-                  className={CLASE_CAMPO}
-                  value={datos.canalCodigo}
-                  onChange={(e) => cambiar("canalCodigo", e.target.value)}
-                  disabled={sinAsociados}
-                  required
-                >
-                  <option value="">Selecciona un canal</option>
-                  {canales.map((canal) => (
-                    <option key={canal.codigo} value={canal.codigo}>
-                      {canal.nombre}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Campo>
+      <Campo
+        etiqueta="Observación"
+        error={errores.observacion}
+        ayuda="Opcional."
+      >
+        <textarea
+          className={CLASE_AREA}
+          placeholder="Qué se conversó en el primer contacto."
+          value={datos.observacion}
+          onChange={(e) => cambiar("observacion", e.target.value)}
+          disabled={bloqueado}
+          maxLength={2000}
+        />
+      </Campo>
 
-            <Campo
-              etiqueta="Observación"
-              error={errores.observacion}
-              ayuda="Opcional."
-            >
-              <textarea
-                className={CLASE_AREA}
-                placeholder="Qué se conversó en el primer contacto."
-                value={datos.observacion}
-                onChange={(e) => cambiar("observacion", e.target.value)}
-                disabled={bloqueado}
-                maxLength={2000}
-              />
-            </Campo>
+      {/* La etapa no se pide: RN-36 obliga a empezar en Contacto. */}
+      <p className="text-xs text-muted-foreground">
+        La prospección se abre en etapa <strong>Contacto</strong>. La
+        oferta y el cierre se registran desde su detalle.
+      </p>
 
-            {/* La etapa no se pide: RN-36 obliga a empezar en Contacto. */}
-            <p className="text-xs text-muted-foreground">
-              La prospección se abre en etapa <strong>Contacto</strong>. La
-              oferta y el cierre se registran desde su detalle.
-            </p>
-
-            <ErrorGeneral mensaje={mensaje} />
-          </div>
-
-          <DialogFooter className="border-t border-border px-6 py-4">
-            <button
-              type="button"
-              onClick={onCerrar}
-              disabled={enviando}
-              className={BOTON_SECUNDARIO}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={enviando || bloqueado}
-              className={BOTON_PRIMARIO}
-            >
-              {enviando ? "Abriendo..." : "Abrir prospección"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <ErrorGeneral mensaje={mensaje} />
+    </DialogoFormulario>
   );
 }
 

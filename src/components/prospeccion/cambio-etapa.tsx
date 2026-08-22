@@ -2,13 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, Pencil } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogoFormulario } from "@/components/form/dialogo-formulario";
 import {
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
@@ -172,64 +166,56 @@ function DialogValor({
     });
   }
 
+  const pie = (
+    <>
+      <button
+        type="button"
+        onClick={onCerrar}
+        disabled={enviando}
+        className={BOTON_SECUNDARIO}
+      >
+        Cancelar
+      </button>
+      <button type="submit" disabled={enviando} className={BOTON_PRIMARIO}>
+        {enviando
+          ? "Guardando..."
+          : pasandoAOferta
+            ? "Pasar a Oferta"
+            : "Guardar valor"}
+      </button>
+    </>
+  );
+
   return (
-    <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="gap-0 p-0 sm:max-w-md">
-        <DialogHeader className="border-b border-border px-6 py-5 text-left">
-          <p className={CLASE_ETIQUETA}>{detalle.productoNombre}</p>
-          <DialogTitle className="text-xl font-semibold text-want-navy">
-            {pasandoAOferta ? "Pasar a Oferta" : "Valor de la oferta"}
-          </DialogTitle>
-        </DialogHeader>
+    <DialogoFormulario
+      etiqueta={detalle.productoNombre}
+      titulo={pasandoAOferta ? "Pasar a Oferta" : "Valor de la oferta"}
+      pie={pie}
+      onCerrar={onCerrar}
+      onSubmit={enviar}
+      ancho="md"
+    >
+      <CampoValor
+        etiqueta={
+          detalle.unidadMedida === "MONTO"
+            ? "Monto ofertado"
+            : "Cantidad ofertada"
+        }
+        unidadMedida={detalle.unidadMedida}
+        valor={valor}
+        onCambiar={setValor}
+        error={errores.valor}
+        autoFocus
+      />
 
-        <form onSubmit={enviar}>
-          <div className="space-y-5 px-6 py-6">
-            <CampoValor
-              etiqueta={
-                detalle.unidadMedida === "MONTO"
-                  ? "Monto ofertado"
-                  : "Cantidad ofertada"
-              }
-              unidadMedida={detalle.unidadMedida}
-              valor={valor}
-              onCambiar={setValor}
-              error={errores.valor}
-              autoFocus
-            />
+      {pasandoAOferta ? (
+        <p className="text-xs text-muted-foreground">
+          Al cerrar la venta se confirma este valor, que puede cambiar por
+          la negociación.
+        </p>
+      ) : null}
 
-            {pasandoAOferta ? (
-              <p className="text-xs text-muted-foreground">
-                Al cerrar la venta se confirma este valor, que puede cambiar por
-                la negociación.
-              </p>
-            ) : null}
-
-            <ErrorGeneral mensaje={mensaje} />
-          </div>
-
-          <DialogFooter className="border-t border-border px-6 py-4">
-            <button
-              type="button"
-              onClick={onCerrar}
-              disabled={enviando}
-              className={BOTON_SECUNDARIO}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={enviando}
-              className={BOTON_PRIMARIO}
-            >
-              {enviando
-                ? "Guardando..."
-                : pasandoAOferta
-                  ? "Pasar a Oferta"
-                  : "Guardar valor"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <ErrorGeneral mensaje={mensaje} />
+    </DialogoFormulario>
   );
 }

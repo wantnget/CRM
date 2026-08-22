@@ -60,6 +60,7 @@ export function CamposAdministrador({
       <Campo etiqueta="Identificación" error={error("numeroIdentificacion")}>
         <input
           className={CLASE_CAMPO}
+          inputMode="numeric"
           placeholder="10125142"
           value={datos.numeroIdentificacion}
           onChange={(e) => onCambiar("numeroIdentificacion", e.target.value)}

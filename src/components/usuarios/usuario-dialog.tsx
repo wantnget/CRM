@@ -1,13 +1,8 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogoFormulario } from "@/components/form/dialogo-formulario";
+import { BOTON_PRIMARIO, BOTON_SECUNDARIO } from "@/components/form/campos";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ROLES_ASIGNABLES, type ResultadoAccion } from "@/lib/validaciones/usuario";
@@ -193,212 +188,203 @@ export function UsuarioDialog({
     });
   }
 
+  const pie = (
+    <>
+      <button
+        type="button"
+        onClick={onCerrar}
+        disabled={enviando}
+        className={BOTON_SECUNDARIO}
+      >
+        Cancelar
+      </button>
+      <button type="submit" disabled={enviando} className={BOTON_PRIMARIO}>
+        {enviando ? "Guardando..." : "Guardar"}
+      </button>
+    </>
+  );
+
   return (
-    <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
-        <DialogHeader className="border-b border-border px-6 py-5 text-left">
-          <p className={CLASE_ETIQUETA}>Usuarios</p>
-          <DialogTitle className="text-xl font-semibold text-want-navy">
-            {editando ? "Editar usuario" : "Nuevo usuario"}
-          </DialogTitle>
-        </DialogHeader>
+    <DialogoFormulario
+      etiqueta="Usuarios"
+      titulo={editando ? "Editar usuario" : "Nuevo usuario"}
+      pie={pie}
+      onCerrar={onCerrar}
+      onSubmit={enviar}
+    >
+      <Campo etiqueta="Correo" error={errores.email}>
+        <input
+          type="email"
+          className={CLASE_CAMPO}
+          placeholder="usuario@wantnget.com.co"
+          value={datos.email}
+          onChange={(e) => cambiar("email", e.target.value)}
+          // RN-12: el correo es el identificador de login y es inmutable.
+          disabled={editando}
+          required
+        />
+        {editando ? (
+          <p className="text-xs text-muted-foreground">
+            El correo es el identificador de acceso y no se puede
+            modificar. Para cambiarlo, inactiva el usuario y crea uno nuevo.
+          </p>
+        ) : null}
+      </Campo>
 
-        <form onSubmit={enviar}>
-          <div className="space-y-5 px-6 py-6">
-            <Campo etiqueta="Correo" error={errores.email}>
-              <input
-                type="email"
-                className={CLASE_CAMPO}
-                placeholder="usuario@wantnget.com.co"
-                value={datos.email}
-                onChange={(e) => cambiar("email", e.target.value)}
-                // RN-12: el correo es el identificador de login y es inmutable.
-                disabled={editando}
-                required
-              />
-              {editando ? (
-                <p className="text-xs text-muted-foreground">
-                  El correo es el identificador de acceso y no se puede
-                  modificar. Para cambiarlo, inactiva el usuario y crea uno nuevo.
-                </p>
-              ) : null}
-            </Campo>
+      <Campo
+        etiqueta="Identificación"
+        error={errores.numeroIdentificacion}
+      >
+        <input
+          className={CLASE_CAMPO}
+          placeholder="10125142"
+          value={datos.numeroIdentificacion}
+          onChange={(e) =>
+            cambiar("numeroIdentificacion", e.target.value)
+          }
+          required
+        />
+      </Campo>
 
-            <Campo
-              etiqueta="Identificación"
-              error={errores.numeroIdentificacion}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo etiqueta="Nombres" error={errores.nombres}>
+          <input
+            className={CLASE_CAMPO}
+            placeholder="María Fernanda"
+            value={datos.nombres}
+            onChange={(e) => cambiar("nombres", e.target.value)}
+            required
+          />
+        </Campo>
+
+        <Campo etiqueta="Apellidos" error={errores.apellidos}>
+          <input
+            className={CLASE_CAMPO}
+            placeholder="Arias Ospina"
+            value={datos.apellidos}
+            onChange={(e) => cambiar("apellidos", e.target.value)}
+            required
+          />
+        </Campo>
+      </div>
+
+      <Campo
+        etiqueta="Teléfono de WhatsApp"
+        error={errores.telefonoWhatsapp}
+      >
+        <input
+          type="tel"
+          className={CLASE_CAMPO}
+          placeholder="+573001234567"
+          value={datos.telefonoWhatsapp}
+          onChange={(e) => cambiar("telefonoWhatsapp", e.target.value)}
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          El código de verificación del inicio de sesión llega a este
+          número.
+        </p>
+      </Campo>
+
+      <Campo etiqueta="Rol" error={errores.rolCodigo}>
+        <select
+          className={CLASE_CAMPO}
+          value={datos.rolCodigo}
+          onChange={(e) => cambiar("rolCodigo", e.target.value)}
+        >
+          {ROLES_ASIGNABLES.map((rol) => (
+            <option key={rol} value={rol}>
+              {ETIQUETA_ROL[rol]}
+            </option>
+          ))}
+        </select>
+      </Campo>
+
+      {/* La oficina depende del rol: el Gestor tiene una (y es obligatoria
+          por el CHECK ck_usuario_gestor_con_oficina), el Líder puede tener
+          varias (RN-13), y el Director no aplica. */}
+      {datos.rolCodigo === "GESTOR" ? (
+        <Campo etiqueta="Oficina" error={errores.oficinaId}>
+          <select
+            className={CLASE_CAMPO}
+            value={datos.oficinaId}
+            onChange={(e) => cambiar("oficinaId", e.target.value)}
+          >
+            <option value="">Selecciona una oficina</option>
+            {oficinas.map((oficina) => (
+              <option key={oficina.id} value={oficina.id}>
+                {oficina.nombre}
+              </option>
+            ))}
+          </select>
+        </Campo>
+      ) : null}
+
+      {/* RN-19 / RN-20: el Gestor tiene un Líder vigente, y es lo que lo
+          hace aparecer en la Consulta de ese Líder. La asignación se
+          guarda en asignacion_gestor_lider con su vigencia. */}
+      {datos.rolCodigo === "GESTOR" ? (
+        <Campo etiqueta="Líder asignado" error={errores.liderId}>
+          {lideres.length === 0 ? (
+            <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-sm text-amber-800">
+              No hay Líderes activos en la compañía. Crea primero un
+              usuario con rol Líder para poder asignarle este Gestor.
+            </p>
+          ) : (
+            <select
+              className={CLASE_CAMPO}
+              value={datos.liderId}
+              onChange={(e) => cambiar("liderId", e.target.value)}
             >
-              <input
-                className={CLASE_CAMPO}
-                placeholder="10125142"
-                value={datos.numeroIdentificacion}
-                onChange={(e) =>
-                  cambiar("numeroIdentificacion", e.target.value)
-                }
-                required
-              />
-            </Campo>
+              <option value="">Selecciona un Líder</option>
+              {lideres.map((lider) => (
+                <option key={lider.id} value={lider.id}>
+                  {lider.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+        </Campo>
+      ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Campo etiqueta="Nombres" error={errores.nombres}>
-                <input
-                  className={CLASE_CAMPO}
-                  placeholder="María Fernanda"
-                  value={datos.nombres}
-                  onChange={(e) => cambiar("nombres", e.target.value)}
-                  required
-                />
-              </Campo>
-
-              <Campo etiqueta="Apellidos" error={errores.apellidos}>
-                <input
-                  className={CLASE_CAMPO}
-                  placeholder="Arias Ospina"
-                  value={datos.apellidos}
-                  onChange={(e) => cambiar("apellidos", e.target.value)}
-                  required
-                />
-              </Campo>
-            </div>
-
-            <Campo
-              etiqueta="Teléfono de WhatsApp"
-              error={errores.telefonoWhatsapp}
-            >
-              <input
-                type="tel"
-                className={CLASE_CAMPO}
-                placeholder="+573001234567"
-                value={datos.telefonoWhatsapp}
-                onChange={(e) => cambiar("telefonoWhatsapp", e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                El código de verificación del inicio de sesión llega a este
-                número.
-              </p>
-            </Campo>
-
-            <Campo etiqueta="Rol" error={errores.rolCodigo}>
-              <select
-                className={CLASE_CAMPO}
-                value={datos.rolCodigo}
-                onChange={(e) => cambiar("rolCodigo", e.target.value)}
-              >
-                {ROLES_ASIGNABLES.map((rol) => (
-                  <option key={rol} value={rol}>
-                    {ETIQUETA_ROL[rol]}
-                  </option>
-                ))}
-              </select>
-            </Campo>
-
-            {/* La oficina depende del rol: el Gestor tiene una (y es obligatoria
-                por el CHECK ck_usuario_gestor_con_oficina), el Líder puede tener
-                varias (RN-13), y el Director no aplica. */}
-            {datos.rolCodigo === "GESTOR" ? (
-              <Campo etiqueta="Oficina" error={errores.oficinaId}>
-                <select
-                  className={CLASE_CAMPO}
-                  value={datos.oficinaId}
-                  onChange={(e) => cambiar("oficinaId", e.target.value)}
-                >
-                  <option value="">Selecciona una oficina</option>
-                  {oficinas.map((oficina) => (
-                    <option key={oficina.id} value={oficina.id}>
-                      {oficina.nombre}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-            ) : null}
-
-            {/* RN-19 / RN-20: el Gestor tiene un Líder vigente, y es lo que lo
-                hace aparecer en la Consulta de ese Líder. La asignación se
-                guarda en asignacion_gestor_lider con su vigencia. */}
-            {datos.rolCodigo === "GESTOR" ? (
-              <Campo etiqueta="Líder asignado" error={errores.liderId}>
-                {lideres.length === 0 ? (
-                  <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-sm text-amber-800">
-                    No hay Líderes activos en la compañía. Crea primero un
-                    usuario con rol Líder para poder asignarle este Gestor.
-                  </p>
-                ) : (
-                  <select
-                    className={CLASE_CAMPO}
-                    value={datos.liderId}
-                    onChange={(e) => cambiar("liderId", e.target.value)}
-                  >
-                    <option value="">Selecciona un Líder</option>
-                    {lideres.map((lider) => (
-                      <option key={lider.id} value={lider.id}>
-                        {lider.nombre}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Campo>
-            ) : null}
-
-            {datos.rolCodigo === "LIDER" ? (
-              <Campo etiqueta="Oficinas a cargo" error={errores.oficinasIds}>
-                <div className="space-y-2 rounded-lg border border-input p-3">
-                  {oficinas.map((oficina) => {
-                    const id = `${idBase}-of-${oficina.id}`;
-                    return (
-                      <div key={oficina.id} className="flex items-center gap-2.5">
-                        <Checkbox
-                          id={id}
-                          checked={datos.oficinasIds.includes(oficina.id)}
-                          onCheckedChange={() => alternarOficina(oficina.id)}
-                        />
-                        <label htmlFor={id} className="text-sm">
-                          {oficina.nombre}
-                        </label>
-                      </div>
-                    );
-                  })}
+      {datos.rolCodigo === "LIDER" ? (
+        <Campo etiqueta="Oficinas a cargo" error={errores.oficinasIds}>
+          <div className="space-y-2 rounded-lg border border-input p-3">
+            {oficinas.map((oficina) => {
+              const id = `${idBase}-of-${oficina.id}`;
+              return (
+                <div key={oficina.id} className="flex items-center gap-2.5">
+                  <Checkbox
+                    id={id}
+                    checked={datos.oficinasIds.includes(oficina.id)}
+                    onCheckedChange={() => alternarOficina(oficina.id)}
+                  />
+                  <label htmlFor={id} className="text-sm">
+                    {oficina.nombre}
+                  </label>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Un Líder puede tener varias oficinas asignadas.
-                </p>
-              </Campo>
-            ) : null}
-
-            {datos.rolCodigo === "DIRECTOR" ? (
-              <Campo etiqueta="Oficina">
-                <p className="text-sm text-muted-foreground">
-                  No aplica: el Director tiene alcance sobre toda la compañía.
-                </p>
-              </Campo>
-            ) : null}
-
-            {mensaje ? (
-              <p className="rounded-lg bg-want-rojo/10 px-3 py-2 text-sm text-want-rojo">
-                {mensaje}
-              </p>
-            ) : null}
+              );
+            })}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Un Líder puede tener varias oficinas asignadas.
+          </p>
+        </Campo>
+      ) : null}
 
-          <DialogFooter className="border-t border-border px-6 py-4">
-            <button
-              type="button"
-              onClick={onCerrar}
-              disabled={enviando}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium transition hover:bg-muted disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={enviando}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-want-navy px-5 text-sm font-medium text-white transition hover:bg-want-navy/90 disabled:opacity-50"
-            >
-              {enviando ? "Guardando..." : "Guardar"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {datos.rolCodigo === "DIRECTOR" ? (
+        <Campo etiqueta="Oficina">
+          <p className="text-sm text-muted-foreground">
+            No aplica: el Director tiene alcance sobre toda la compañía.
+          </p>
+        </Campo>
+      ) : null}
+
+      {mensaje ? (
+        <p className="rounded-lg bg-want-rojo/10 px-3 py-2 text-sm text-want-rojo">
+          {mensaje}
+        </p>
+      ) : null}
+    </DialogoFormulario>
   );
 }

@@ -12,10 +12,10 @@ export const CLASE_CAMPO =
   "h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-want-navy focus:ring-2 focus:ring-want-navy/20 disabled:bg-muted disabled:text-muted-foreground read-only:bg-muted read-only:text-muted-foreground";
 
 export const BOTON_PRIMARIO =
-  "inline-flex h-10 items-center justify-center rounded-lg bg-want-navy px-5 text-sm font-medium text-white transition hover:bg-want-navy/90 disabled:opacity-50";
+  "inline-flex h-11 items-center justify-center rounded-lg bg-want-navy px-5 text-sm font-medium text-white transition hover:bg-want-navy/90 disabled:opacity-50 sm:h-10";
 
 export const BOTON_SECUNDARIO =
-  "inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium transition hover:bg-muted disabled:opacity-50";
+  "inline-flex h-11 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium transition hover:bg-muted disabled:opacity-50 sm:h-10";
 
 export function Campo({
   etiqueta,

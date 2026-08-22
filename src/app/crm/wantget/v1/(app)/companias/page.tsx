@@ -83,7 +83,7 @@ export default async function CompaniasPage() {
     <>
       <PageHeader contexto={contexto} titulo="Gestión de Compañías" />
 
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <CompaniasPanel companias={filas} />
       </div>
     </>

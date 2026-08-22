@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 // Retraso puramente perceptivo: el detalle ya está en memoria, pero un cambio
 // instantáneo se siente como que no pasó nada al hacer clic.
-const RETRASO_EXPANSION_MS = 250;
+export const RETRASO_EXPANSION_MS = 250;
 
 type FilaExpandibleProps = {
   celdas: React.ReactNode;

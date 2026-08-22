@@ -39,7 +39,7 @@ export type FilaCompania = {
 };
 
 const BASE_BOTON =
-  "inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex min-h-11 flex-1 items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-50 lg:min-h-0 lg:flex-none";
 
 function AccionesCompania({
   fila,
@@ -53,7 +53,7 @@ function AccionesCompania({
   const activa = fila.estado === "ACTIVO";
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center gap-2 lg:justify-end">
       <button
         type="button"
         onClick={onEditar}
@@ -151,6 +151,7 @@ export function CompaniasPanel({ companias }: { companias: FilaCompania[] }) {
     {
       id: "razon",
       encabezado: "Razón social",
+      movil: "titulo",
       celda: (c) => c.razonSocial,
     },
     {
@@ -172,12 +173,14 @@ export function CompaniasPanel({ companias }: { companias: FilaCompania[] }) {
     {
       id: "estado",
       encabezado: "Estado",
+      movil: "insignia",
       celda: (c) => <EstadoPill estado={c.estado} genero="femenino" />,
     },
     {
       id: "acciones",
       encabezado: "Acción",
       alineacion: "derecha",
+      movil: "pie",
       celda: (c) => (
         <AccionesCompania
           fila={c}
@@ -199,7 +202,7 @@ export function CompaniasPanel({ companias }: { companias: FilaCompania[] }) {
         <button
           type="button"
           onClick={() => setVista({ tipo: "nueva" })}
-          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-want-naranja px-4 text-sm font-semibold text-want-navy transition hover:brightness-95"
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-want-naranja px-4 text-sm font-semibold text-want-navy transition hover:brightness-95 lg:h-10"
         >
           <Plus className="size-4" />
           Nueva compañía

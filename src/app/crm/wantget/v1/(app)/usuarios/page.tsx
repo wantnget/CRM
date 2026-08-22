@@ -28,7 +28,7 @@ export default async function UsuariosPage() {
     return (
       <>
         <PageHeader contexto={contexto} titulo="Usuarios" />
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-8 sm:py-8">
           <Panel titulo="Usuarios de la compañía">
             <p className="px-5 py-12 text-center text-sm text-muted-foreground">
               Este rol no está asociado a una compañía, así que no tiene usuarios
@@ -130,7 +130,7 @@ export default async function UsuariosPage() {
     <>
       <PageHeader contexto={contexto} titulo="Usuarios" />
 
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <UsuariosPanel
           usuarios={filas}
           oficinas={oficinas}

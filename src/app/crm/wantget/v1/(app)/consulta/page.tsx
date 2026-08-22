@@ -50,7 +50,7 @@ export default async function ConsultaPage({ searchParams }: ConsultaPageProps) 
     return (
       <>
         <PageHeader contexto={contexto} titulo={titulo} />
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-8 sm:py-8">
           <ModuloPendiente
             referencia="CRM.docx §1 · PA-01"
             pendiente="Este rol no tiene alcance definido sobre datos comerciales en la matriz de visibilidad."
@@ -101,7 +101,7 @@ export default async function ConsultaPage({ searchParams }: ConsultaPageProps) 
   return (
     <>
       <PageHeader contexto={contexto} titulo={titulo} />
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <ConsultaGeneral
           basePath={ruta}
           opciones={opciones}

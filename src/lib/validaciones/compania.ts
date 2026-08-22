@@ -87,43 +87,56 @@ function validarAdministradores(
   if (primero.email === segundo.email) {
     ctx.addIssue({
       code: "custom",
-      path: ["administradores", 1, "email"],
+      path: [1, "email"],
       message: "Los dos administradores deben tener correos distintos",
     });
   }
   if (primero.numeroIdentificacion === segundo.numeroIdentificacion) {
     ctx.addIssue({
       code: "custom",
-      path: ["administradores", 1, "numeroIdentificacion"],
+      path: [1, "numeroIdentificacion"],
       message: "Los dos administradores deben tener identificaciones distintas",
     });
   }
 }
 
-export const esquemaCrearCompania = z
-  .object({
-    ...datosCompania,
-    oficinas: z
-      .array(esquemaOficinaNueva)
-      .min(1, "Agrega al menos una oficina")
-      .max(50, "Demasiadas oficinas"),
-    // RN-10: exactamente 2 administradores activos al momento de la creación.
-    administradores: z
-      .array(esquemaAdministrador)
-      .length(2, "La compañía se crea con exactamente 2 administradores"),
-  })
-  .superRefine((datos, ctx) => {
-    validarAdministradores(datos.administradores, ctx);
+/**
+ * Los tres bloques del alta se exportan por separado además de compuestos: el
+ * wizard valida paso por paso con estos mismos esquemas, así el aviso temprano
+ * en el cliente y el rechazo del servidor no pueden discrepar.
+ *
+ * Las rutas de los issues son relativas a cada bloque, de modo que al anidarlos
+ * en `esquemaCrearCompania` queden como "oficinas.0.codigo" o
+ * "administradores.1.email", que es lo que leen los formularios.
+ */
+export const esquemaDatosCompania = z.object(datosCompania);
 
-    const codigos = datos.oficinas.map((o) => o.codigo);
+export const esquemaOficinasNuevas = z
+  .array(esquemaOficinaNueva)
+  .min(1, "Agrega al menos una oficina")
+  .max(50, "Demasiadas oficinas")
+  .superRefine((oficinas, ctx) => {
+    const codigos = oficinas.map((o) => o.codigo);
     if (new Set(codigos).size !== codigos.length) {
       ctx.addIssue({
         code: "custom",
-        path: ["oficinas"],
+        path: [],
         message: "Hay códigos de oficina repetidos",
       });
     }
   });
+
+// RN-10: exactamente 2 administradores activos al momento de la creación.
+export const esquemaAdministradoresNuevos = z
+  .array(esquemaAdministrador)
+  .length(2, "La compañía se crea con exactamente 2 administradores")
+  .superRefine(validarAdministradores);
+
+export const esquemaCrearCompania = z.object({
+  ...datosCompania,
+  oficinas: esquemaOficinasNuevas,
+  administradores: esquemaAdministradoresNuevos,
+});
 
 export const esquemaActualizarCompania = z.object({
   id: uuid,

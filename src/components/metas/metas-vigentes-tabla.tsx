@@ -24,6 +24,7 @@ export function MetasVigentesTabla({ filas, productos, periodo }: MetasVigentesT
     {
       id: "gestor",
       encabezado: "Gestor",
+      movil: "titulo",
       celda: (fila) => <span className="font-medium text-want-navy">{fila.gestor}</span>,
     },
     {
@@ -34,6 +35,7 @@ export function MetasVigentesTabla({ filas, productos, periodo }: MetasVigentesT
     {
       id: "periodo",
       encabezado: "Periodo",
+      movil: "insignia",
       celda: (fila) =>
         fila.vigente ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-want-naranja/40 bg-want-naranja/10 px-2 py-0.5 text-xs font-medium text-want-navy">

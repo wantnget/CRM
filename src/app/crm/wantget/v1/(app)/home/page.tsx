@@ -20,7 +20,7 @@ export default async function HomePage() {
   return (
     <>
       <PageHeader contexto={contexto} titulo="Sin módulos asignados" />
-      <div className="px-8 py-10">
+      <div className="px-4 py-8 sm:px-8 sm:py-10">
         <div className="max-w-xl rounded-xl border border-border bg-card p-6">
           <p className="text-sm text-muted-foreground">
             El rol <strong className="text-foreground">{contexto.rol.nombre}</strong>{" "}

@@ -53,7 +53,7 @@ export default async function ProspeccionPage({
     return (
       <>
         <PageHeader contexto={contexto} titulo="Prospección" />
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-8 sm:py-8">
           <Panel titulo="Bandeja de prospección">
             <p className="px-6 py-12 text-center text-sm text-muted-foreground">
               La bandeja de prospección es de los Gestores: las oportunidades se
@@ -103,7 +103,7 @@ export default async function ProspeccionPage({
     <>
       <PageHeader contexto={contexto} titulo="Prospección" />
 
-      <div className="px-8 py-8">
+      <div className="px-4 py-6 sm:px-8 sm:py-8">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <p className="max-w-2xl text-sm text-muted-foreground">
             Gestione las oportunidades de su cartera. Cada prospección avanza por

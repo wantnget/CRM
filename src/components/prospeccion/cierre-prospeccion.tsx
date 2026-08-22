@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogoFormulario } from "@/components/form/dialogo-formulario";
 import {
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
@@ -189,64 +183,56 @@ function DialogVenta({
     });
   }
 
+  const pie = (
+    <>
+      <button
+        type="button"
+        onClick={onCerrar}
+        disabled={enviando}
+        className={BOTON_SECUNDARIO}
+      >
+        Cancelar
+      </button>
+      <button type="submit" disabled={enviando} className={BOTON_PRIMARIO}>
+        {enviando ? "Cerrando..." : "Cerrar como venta"}
+      </button>
+    </>
+  );
+
   return (
-    <Dialog open onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="gap-0 p-0 sm:max-w-md">
-        <DialogHeader className="border-b border-border px-6 py-5 text-left">
-          <p className={CLASE_ETIQUETA}>{detalle.productoNombre}</p>
-          <DialogTitle className="text-xl font-semibold text-want-navy">
-            Finaliza – Venta
-          </DialogTitle>
-        </DialogHeader>
+    <DialogoFormulario
+      etiqueta={detalle.productoNombre}
+      titulo="Finaliza – Venta"
+      pie={pie}
+      onCerrar={onCerrar}
+      onSubmit={enviar}
+      ancho="md"
+    >
+      <CampoValor
+        etiqueta={
+          detalle.unidadMedida === "MONTO"
+            ? "Monto vendido"
+            : "Cantidad vendida"
+        }
+        unidadMedida={detalle.unidadMedida}
+        valor={valor}
+        onCambiar={setValor}
+        error={errores.valor}
+        autoFocus
+      />
 
-        <form onSubmit={enviar}>
-          <div className="space-y-5 px-6 py-6">
-            <CampoValor
-              etiqueta={
-                detalle.unidadMedida === "MONTO"
-                  ? "Monto vendido"
-                  : "Cantidad vendida"
-              }
-              unidadMedida={detalle.unidadMedida}
-              valor={valor}
-              onCambiar={setValor}
-              error={errores.valor}
-              autoFocus
-            />
+      <p className="text-xs text-muted-foreground">
+        {detalle.valor === null
+          ? "Es el valor que suma a los resultados comerciales del periodo."
+          : `Se ofertó ${formatearValor(detalle.valor, detalle.unidadMedida)}. Confírmalo o corrígelo si la negociación lo cambió.`}
+      </p>
 
-            <p className="text-xs text-muted-foreground">
-              {detalle.valor === null
-                ? "Es el valor que suma a los resultados comerciales del periodo."
-                : `Se ofertó ${formatearValor(detalle.valor, detalle.unidadMedida)}. Confírmalo o corrígelo si la negociación lo cambió.`}
-            </p>
+      <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-xs text-amber-800">
+        Al cerrar, la prospección queda de solo lectura y la venta se
+        imputa al mes del cierre.
+      </p>
 
-            <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-xs text-amber-800">
-              Al cerrar, la prospección queda de solo lectura y la venta se
-              imputa al mes del cierre.
-            </p>
-
-            <ErrorGeneral mensaje={mensaje} />
-          </div>
-
-          <DialogFooter className="border-t border-border px-6 py-4">
-            <button
-              type="button"
-              onClick={onCerrar}
-              disabled={enviando}
-              className={BOTON_SECUNDARIO}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={enviando}
-              className={BOTON_PRIMARIO}
-            >
-              {enviando ? "Cerrando..." : "Cerrar como venta"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <ErrorGeneral mensaje={mensaje} />
+    </DialogoFormulario>
   );
 }

@@ -2,17 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogoFormulario } from "@/components/form/dialogo-formulario";
 import {
   BOTON_PRIMARIO,
   BOTON_SECUNDARIO,
-  CLASE_ETIQUETA,
   ErrorGeneral,
 } from "@/components/form/campos";
 import {
@@ -81,49 +74,45 @@ export function ReemplazarAdminDialog({
     });
   }
 
+  const pie = (
+    <>
+      <button
+        type="button"
+        onClick={onCerrar}
+        disabled={enviando}
+        className={BOTON_SECUNDARIO}
+      >
+        Cancelar
+      </button>
+      <button type="submit" disabled={enviando} className={BOTON_PRIMARIO}>
+        {enviando ? "Reemplazando..." : "Reemplazar"}
+      </button>
+    </>
+  );
+
   return (
-    <Dialog open onOpenChange={(abierto) => !abierto && !enviando && onCerrar()}>
-      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
-        <DialogHeader className="border-b border-border px-6 py-5 text-left">
-          <p className={CLASE_ETIQUETA}>Gestión de Compañías</p>
-          <DialogTitle className="text-xl font-semibold text-want-navy">
-            Reemplazar administrador
-          </DialogTitle>
-        </DialogHeader>
+    <DialogoFormulario
+      etiqueta="Gestión de Compañías"
+      titulo="Reemplazar administrador"
+      pie={pie}
+      onCerrar={onCerrar}
+      bloqueado={enviando}
+      onSubmit={guardar}
+    >
+      <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-sm text-amber-900">
+        <strong>{administrador.nombreCompleto}</strong> (
+        {administrador.email}) quedará inactivo y el nuevo administrador
+        tomará su lugar. El usuario no se elimina.
+      </p>
 
-        <form onSubmit={guardar}>
-          <div className="space-y-5 px-6 py-6">
-            <p className="rounded-lg bg-want-naranja/10 px-3 py-2 text-sm text-amber-900">
-              <strong>{administrador.nombreCompleto}</strong> (
-              {administrador.email}) quedará inactivo y el nuevo administrador
-              tomará su lugar. El usuario no se elimina.
-            </p>
+      <CamposAdministrador
+        datos={datos}
+        errores={errores}
+        prefijo="nuevo"
+        onCambiar={cambiar}
+      />
 
-            <CamposAdministrador
-              datos={datos}
-              errores={errores}
-              prefijo="nuevo"
-              onCambiar={cambiar}
-            />
-
-            <ErrorGeneral mensaje={mensaje} />
-          </div>
-
-          <DialogFooter className="border-t border-border px-6 py-4">
-            <button
-              type="button"
-              onClick={onCerrar}
-              disabled={enviando}
-              className={BOTON_SECUNDARIO}
-            >
-              Cancelar
-            </button>
-            <button type="submit" disabled={enviando} className={BOTON_PRIMARIO}>
-              {enviando ? "Reemplazando..." : "Reemplazar"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <ErrorGeneral mensaje={mensaje} />
+    </DialogoFormulario>
   );
 }
