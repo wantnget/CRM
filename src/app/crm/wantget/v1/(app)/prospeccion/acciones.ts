@@ -11,7 +11,6 @@ import {
 } from "@/lib/acciones/gestor";
 import { mapearDuplicado } from "@/lib/errores-prisma";
 import { BASE_CRM } from "@/lib/navegacion";
-import { enviarCorreo, enviarWhatsApp } from "@/lib/twilio";
 import type { ResultadoAccion } from "@/lib/validaciones/usuario";
 import {
   esquemaCambiarEtapa,
@@ -354,6 +353,10 @@ export async function crearProspeccion(
 /**
  * Registra una gestión en la bitácora del asociado (CRM.docx §7.3).
  *
+ * Solo deja constancia: el canal indica por dónde ocurrió la interacción, no la
+ * ejecuta. Enviar el correo o el WhatsApp de verdad se hace desde el módulo de
+ * Comunicación, que tiene el estado de la conversación con el proveedor.
+ *
  * La etapa que llega es la de la gestión, no la de la oportunidad: mover la
  * prospección de etapa es `cambiarEtapa`. Se separan porque `gestion.etapa` es
  * "la etapa en la que se realizó esta gestión", y mezclarlas haría que anotar
@@ -388,23 +391,6 @@ export async function registrarGestion(
       ok: false,
       mensaje: "Ese canal no está habilitado para tu usuario.",
       errores: { canalCodigo: "Selecciona un canal habilitado" },
-    };
-  }
-
-  // El correo y el WhatsApp van al contacto real del asociado: sin uno
-  // cargado no hay a dónde enviarlo, así que se rechaza antes de registrar la
-  // gestión.
-  if (canal.codigo === "CORREO_SALIDA" && !oportunidad.asociado.email) {
-    return {
-      ok: false,
-      mensaje: "Este asociado no tiene correo registrado.",
-    };
-  }
-
-  if (canal.codigo === "WA_SALIDA" && !oportunidad.asociado.telefonoWhatsapp) {
-    return {
-      ok: false,
-      mensaje: "Este asociado no tiene WhatsApp registrado.",
     };
   }
 
@@ -455,42 +441,6 @@ export async function registrarGestion(
   } catch (error) {
     console.error("[registrarGestion]", error);
     return { ok: false, mensaje: "No se pudo registrar la gestión." };
-  }
-
-  // El envío va después de confirmar la gestión: si Twilio falla, la gestión ya
-  // quedó registrada (es la fuente de verdad) y solo se avisa del error de envío.
-  if (canal.codigo === "WA_SALIDA") {
-    try {
-      await enviarWhatsApp({
-        destinatario: oportunidad.asociado.telefonoWhatsapp!,
-        cuerpo: datos.observacion,
-      });
-    } catch (error) {
-      console.error("[registrarGestion] envío WhatsApp", error);
-      revalidatePath(RUTA);
-      return {
-        ok: false,
-        mensaje:
-          "La gestión quedó registrada, pero no se pudo enviar el WhatsApp.",
-      };
-    }
-  }
-
-  if (canal.codigo === "CORREO_SALIDA") {
-    try {
-      await enviarCorreo({
-        destinatario: oportunidad.asociado.email!,
-        asunto: `Fondo Want · ${oportunidad.asociado.nombreCompleto}`,
-        cuerpo: datos.observacion,
-      });
-    } catch (error) {
-      console.error("[registrarGestion] envío correo", error);
-      revalidatePath(RUTA);
-      return {
-        ok: false,
-        mensaje: "La gestión quedó registrada, pero no se pudo enviar el correo.",
-      };
-    }
   }
 
   revalidatePath(RUTA);
