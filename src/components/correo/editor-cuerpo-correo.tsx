@@ -5,12 +5,18 @@ import { forwardRef, useRef } from "react";
 
 /**
  * Editor de cuerpo con formato básico (negrita, cursiva, subrayado) e
- * inserción de imágenes, compartido entre "Responder" (ComposerCorreo) y
- * "Redactar" (RedactarCorreoDialog). Es solo UI: usa contentEditable +
- * document.execCommand, sin persistencia de verdad.
+ * inserción de imágenes, usado por el composer de respuesta (ComposerCorreo).
+ * Es solo UI: usa contentEditable + document.execCommand, sin persistencia
+ * de verdad.
  */
-export const EditorCuerpoCorreo = forwardRef<HTMLDivElement, { placeholder?: string }>(
-  function EditorCuerpoCorreo({ placeholder = "Escribe un mensaje..." }, ref) {
+export const EditorCuerpoCorreo = forwardRef<
+  HTMLDivElement,
+  { placeholder?: string; contenidoInicial?: string }
+>(
+  function EditorCuerpoCorreo(
+    { placeholder = "Escribe un mensaje...", contenidoInicial },
+    ref,
+  ) {
     const inputImagenRef = useRef<HTMLInputElement>(null);
 
     function editor(): HTMLDivElement | null {
@@ -42,7 +48,9 @@ export const EditorCuerpoCorreo = forwardRef<HTMLDivElement, { placeholder?: str
           aria-label="Cuerpo del correo"
           data-placeholder={placeholder}
           className="min-h-[6rem] flex-1 overflow-y-auto px-4 py-3 text-sm text-foreground outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_img]:mt-2 [&_img]:max-h-40 [&_img]:rounded-md"
-        />
+        >
+          {contenidoInicial}
+        </div>
 
         <div className="flex items-center gap-1 border-t border-border px-3 py-2">
           <button

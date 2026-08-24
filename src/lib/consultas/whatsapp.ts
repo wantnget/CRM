@@ -1,143 +1,139 @@
-/**
- * Datos de ejemplo para la vista de WhatsApp del Gestor (solo UI: no hay
- * integración con la API de WhatsApp todavía). Sirve para mostrar cómo se
- * vería la conversación con un asociado dentro del CRM.
- */
+import { prisma } from "@/lib/prisma";
+import { inicialesDe } from "@/lib/formato";
+import type { DireccionComunicacion, EstadoMensaje } from "@/generated/prisma/enums";
 
 export type MensajeChat = {
   id: string;
-  autor: "gestor" | "contacto";
-  texto: string;
-  hora: string;
+  direccion: DireccionComunicacion;
+  cuerpo: string;
+  estado: EstadoMensaje;
+  fechaHora: Date;
 };
 
 export type Chat = {
   id: string;
+  asociadoId: string;
   nombre: string;
   iniciales: string;
   telefono: string;
   ultimoMensaje: string;
-  hora: string;
+  ultimoMensajeAt: Date | null;
   noLeidos: number;
-  enLinea: boolean;
+  /**
+   * Ventana de 24 h abierta. Se resuelve en el servidor: comparar la fecha en
+   * el render haría al componente impuro y el estado dependería de cuándo
+   * React decida re-renderizar.
+   */
+  ventanaAbierta: boolean;
   mensajes: MensajeChat[];
 };
 
-export function obtenerChatsMock(): Chat[] {
-  return [
-    {
-      id: "w1",
-      nombre: "Laura Restrepo",
-      iniciales: "LR",
-      telefono: "+57 300 555 1234",
-      ultimoMensaje: "Listos, nos vemos mañana entonces",
-      hora: "9:41 a.m.",
-      noLeidos: 2,
-      enLinea: true,
-      mensajes: [
-        {
-          id: "m1",
-          autor: "contacto",
-          texto: "Hola, buenas! ¿Cómo vamos con la propuesta?",
-          hora: "9:20 a.m.",
+/** Conversaciones del gestor, la más reciente primero. */
+export async function obtenerChats({
+  companiaId,
+  gestorId,
+}: {
+  companiaId: string;
+  gestorId: string;
+}): Promise<Chat[]> {
+  const conversaciones = await prisma.conversacion.findMany({
+    where: { companiaId, gestorId },
+    select: {
+      id: true,
+      asociadoId: true,
+      noLeidos: true,
+      ultimoMensajeAt: true,
+      ventanaExpiraAt: true,
+      asociado: { select: { nombreCompleto: true, telefonoWhatsapp: true } },
+      mensajes: {
+        select: {
+          id: true,
+          direccion: true,
+          cuerpo: true,
+          estado: true,
+          createdAt: true,
         },
-        {
-          id: "m2",
-          autor: "gestor",
-          texto: "Hola Laura, todo en orden. Te la envié por correo esta mañana.",
-          hora: "9:25 a.m.",
-        },
-        {
-          id: "m3",
-          autor: "contacto",
-          texto: "Perfecto, la reviso y te cuento",
-          hora: "9:30 a.m.",
-        },
-        {
-          id: "m4",
-          autor: "contacto",
-          texto: "Listos, nos vemos mañana entonces",
-          hora: "9:41 a.m.",
-        },
-      ],
+        orderBy: { createdAt: "asc" },
+      },
     },
-    {
-      id: "w2",
-      nombre: "Carlos Mendoza",
-      iniciales: "CM",
-      telefono: "+57 312 444 5678",
-      ultimoMensaje: "¿Aplica para dependientes mayores de 25?",
-      hora: "8:05 a.m.",
-      noLeidos: 1,
-      enLinea: false,
-      mensajes: [
-        {
-          id: "m1",
-          autor: "contacto",
-          texto: "Buenas, ya revisé la cotización con mi familia",
-          hora: "8:00 a.m.",
-        },
-        {
-          id: "m2",
-          autor: "contacto",
-          texto: "¿Aplica para dependientes mayores de 25?",
-          hora: "8:05 a.m.",
-        },
-      ],
+    orderBy: [{ ultimoMensajeAt: "desc" }, { createdAt: "desc" }],
+  });
+
+  const ahora = Date.now();
+
+  return conversaciones.map((conversacion) => {
+    const mensajes = conversacion.mensajes.map((mensaje) => ({
+      id: mensaje.id,
+      direccion: mensaje.direccion,
+      cuerpo: mensaje.cuerpo,
+      estado: mensaje.estado,
+      fechaHora: mensaje.createdAt,
+    }));
+
+    return {
+      id: conversacion.id,
+      asociadoId: conversacion.asociadoId,
+      nombre: conversacion.asociado.nombreCompleto,
+      iniciales: inicialesDe(conversacion.asociado.nombreCompleto),
+      telefono: conversacion.asociado.telefonoWhatsapp ?? "",
+      ultimoMensaje: mensajes.at(-1)?.cuerpo ?? "",
+      ultimoMensajeAt: conversacion.ultimoMensajeAt,
+      noLeidos: conversacion.noLeidos,
+      ventanaAbierta:
+        conversacion.ventanaExpiraAt !== null &&
+        conversacion.ventanaExpiraAt.getTime() > ahora,
+      mensajes,
+    };
+  });
+}
+
+export type ContactoWhatsapp = {
+  asociadoId: string;
+  nombre: string;
+  telefono: string;
+  /** Ya tiene conversación abierta: no hay que volver a mandar plantilla. */
+  conConversacion: boolean;
+};
+
+/**
+ * Asociados de la cartera del gestor con WhatsApp registrado. Alimenta el
+ * inicio de una conversación nueva, así la regla de alcance (RN-32) se cumple
+ * por construcción.
+ */
+export async function obtenerContactosWhatsapp({
+  companiaId,
+  gestorId,
+}: {
+  companiaId: string;
+  gestorId: string;
+}): Promise<ContactoWhatsapp[]> {
+  const asignaciones = await prisma.asignacionAsociado.findMany({
+    where: {
+      companiaId,
+      gestorId,
+      vigente: true,
+      asociado: { estado: "ACTIVO", telefonoWhatsapp: { not: null } },
     },
-    {
-      id: "w3",
-      nombre: "Andrea Salazar",
-      iniciales: "AS",
-      telefono: "+57 320 987 6543",
-      ultimoMensaje: "Gracias por todo",
-      hora: "Ayer",
-      noLeidos: 0,
-      enLinea: false,
-      mensajes: [
-        {
-          id: "m1",
-          autor: "gestor",
-          texto: "Andrea, ya me llegaron los documentos firmados. Todo en orden.",
-          hora: "Ayer, 2:20 p.m.",
+    select: {
+      asociado: {
+        select: {
+          id: true,
+          nombreCompleto: true,
+          telefonoWhatsapp: true,
+          conversaciones: {
+            where: { gestorId },
+            select: { id: true },
+          },
         },
-        {
-          id: "m2",
-          autor: "contacto",
-          texto: "Gracias por todo",
-          hora: "Ayer, 2:25 p.m.",
-        },
-      ],
+      },
     },
-    {
-      id: "w4",
-      nombre: "Jorge Iván Pérez",
-      iniciales: "JP",
-      telefono: "+57 315 222 3344",
-      ultimoMensaje: "Quedo atento a la información",
-      hora: "Lunes",
-      noLeidos: 0,
-      enLinea: true,
-      mensajes: [
-        {
-          id: "m1",
-          autor: "contacto",
-          texto: "Buen día, ¿el plan tiene descuento por permanencia?",
-          hora: "Lunes, 11:30 a.m.",
-        },
-        {
-          id: "m2",
-          autor: "gestor",
-          texto: "Sí Jorge, te comparto el detalle en un momento.",
-          hora: "Lunes, 11:40 a.m.",
-        },
-        {
-          id: "m3",
-          autor: "contacto",
-          texto: "Quedo atento a la información",
-          hora: "Lunes, 11:41 a.m.",
-        },
-      ],
-    },
-  ];
+    orderBy: { asociado: { nombreCompleto: "asc" } },
+  });
+
+  return asignaciones.map(({ asociado }) => ({
+    asociadoId: asociado.id,
+    nombre: asociado.nombreCompleto,
+    telefono: asociado.telefonoWhatsapp!,
+    conConversacion: asociado.conversaciones.length > 0,
+  }));
 }

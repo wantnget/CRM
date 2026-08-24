@@ -19,6 +19,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useLogout } from "@/hooks/use-logout";
@@ -44,7 +45,16 @@ function tieneActivo(pathname: string, item: ItemNavegacion): boolean {
 export function AppSidebar({ contexto }: { contexto: ContextoUsuario }) {
   const pathname = usePathname();
   const { logout, isPending } = useLogout();
+  const { setOpenMobile } = useSidebar();
   const grupos = gruposDeRol(contexto.rol.codigo);
+
+  // En móvil el sidebar es un Sheet (collapsible="offcanvas"). Los Link hacen
+  // navegación de cliente, que no desmonta el Dialog: sin esto el overlay
+  // queda tapando la página a la que se acaba de navegar. En escritorio
+  // openMobile ya es false, así que la llamada no tiene efecto.
+  function cerrarEnMovil() {
+    setOpenMobile(false);
+  }
 
   // Ítems de acordeón expandidos por su href. Uno con la ruta activa dentro
   // arranca abierto para que el usuario vea dónde está parado.
@@ -76,7 +86,7 @@ export function AppSidebar({ contexto }: { contexto: ContextoUsuario }) {
     "Todas las compañías";
 
   return (
-    <Sidebar collapsible="none" className="border-r border-sidebar-border">
+    <Sidebar collapsible="offcanvas" className="border-r border-sidebar-border">
       <SidebarHeader className="gap-3 px-5 pt-6 pb-5">
         <Image
           src="/logos/imagen.png"
@@ -150,7 +160,10 @@ export function AppSidebar({ contexto }: { contexto: ContextoUsuario }) {
                                     asChild
                                     isActive={hijoActivo}
                                   >
-                                    <Link href={hijo.href}>
+                                    <Link
+                                      href={hijo.href}
+                                      onClick={cerrarEnMovil}
+                                    >
                                       {hijo.etiqueta}
                                     </Link>
                                   </SidebarMenuSubButton>
@@ -197,7 +210,7 @@ export function AppSidebar({ contexto }: { contexto: ContextoUsuario }) {
                             "bg-white text-want-navy hover:bg-white hover:text-want-navy",
                         )}
                       >
-                        <Link href={item.href}>
+                        <Link href={item.href} onClick={cerrarEnMovil}>
                           {activo ? (
                             <span
                               aria-hidden

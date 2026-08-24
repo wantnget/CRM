@@ -20,6 +20,11 @@ export type EstadoLlamada =
 export function useSoftphone() {
   const [estado, setEstado] = useState<EstadoLlamada>("inactivo");
   const [duracion, setDuracion] = useState(0);
+  const [silenciado, setSilenciado] = useState(false);
+  // Duración con la que terminó la última llamada. `duracion` vuelve a cero al
+  // colgar, y quien cuelga puede ser el asociado: sin este cierre, la gestión
+  // quedaría registrada en 00:00.
+  const [duracionFinal, setDuracionFinal] = useState(0);
   const deviceRef = useRef<Device | null>(null);
   const callRef = useRef<Call | null>(null);
   const inicioRef = useRef<number | null>(null);
@@ -30,6 +35,11 @@ export function useSoftphone() {
       clearInterval(intervaloRef.current);
       intervaloRef.current = null;
     }
+    setDuracionFinal(
+      inicioRef.current
+        ? Math.floor((Date.now() - inicioRef.current) / 1000)
+        : 0,
+    );
     inicioRef.current = null;
     setDuracion(0);
   }, []);
@@ -60,6 +70,8 @@ export function useSoftphone() {
 
   const llamar = useCallback(async (destino: string) => {
     setEstado("conectando");
+    setSilenciado(false);
+    setDuracionFinal(0);
 
     try {
       const device = await obtenerDevice();
@@ -97,5 +109,23 @@ export function useSoftphone() {
     callRef.current?.disconnect();
   }, []);
 
-  return { estado, duracion, llamar, colgar };
+  const alternarSilencio = useCallback(() => {
+    const call = callRef.current;
+    if (!call) return;
+    setSilenciado((actual) => {
+      const siguiente = !actual;
+      call.mute(siguiente);
+      return siguiente;
+    });
+  }, []);
+
+  return {
+    estado,
+    duracion,
+    duracionFinal,
+    silenciado,
+    llamar,
+    colgar,
+    alternarSilencio,
+  };
 }

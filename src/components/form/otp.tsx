@@ -66,7 +66,7 @@ export function OtpForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="otp">Código de verificación</Label>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground wrap-anywhere">
           Te enviamos un código por WhatsApp al número asociado a{" "}
           <span className="font-medium text-foreground">{email}</span>
           {phone ? (
@@ -99,17 +99,17 @@ export function OtpForm({
             <InputOTPSlot
               index={0}
               aria-invalid={Boolean(fieldError)}
-              className="size-14 text-xl"
+              className="size-11 text-lg sm:size-14 sm:text-xl"
             />
             <InputOTPSlot
               index={1}
               aria-invalid={Boolean(fieldError)}
-              className="size-14 text-xl"
+              className="size-11 text-lg sm:size-14 sm:text-xl"
             />
             <InputOTPSlot
               index={2}
               aria-invalid={Boolean(fieldError)}
-              className="size-14 text-xl"
+              className="size-11 text-lg sm:size-14 sm:text-xl"
             />
           </InputOTPGroup>
           <InputOTPSeparator />
@@ -117,17 +117,17 @@ export function OtpForm({
             <InputOTPSlot
               index={3}
               aria-invalid={Boolean(fieldError)}
-              className="size-14 text-xl"
+              className="size-11 text-lg sm:size-14 sm:text-xl"
             />
             <InputOTPSlot
               index={4}
               aria-invalid={Boolean(fieldError)}
-              className="size-14 text-xl"
+              className="size-11 text-lg sm:size-14 sm:text-xl"
             />
             <InputOTPSlot
               index={5}
               aria-invalid={Boolean(fieldError)}
-              className="size-14 text-xl"
+              className="size-11 text-lg sm:size-14 sm:text-xl"
             />
           </InputOTPGroup>
         </InputOTP>

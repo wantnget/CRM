@@ -47,7 +47,7 @@ export function BuscadorBandeja({ base }: { base: string }) {
         placeholder="Buscar asociado o ID"
         value={texto}
         onChange={(evento) => setTexto(evento.target.value)}
-        className="h-10 w-full rounded-lg border border-input bg-background pr-9 pl-9 text-sm outline-none transition focus:border-want-navy focus:ring-2 focus:ring-want-navy/20"
+        className="h-9 w-full rounded-lg border border-input bg-background pr-9 pl-9 text-sm outline-none transition focus:border-want-navy focus:ring-2 focus:ring-want-navy/20"
       />
 
       {texto ? (

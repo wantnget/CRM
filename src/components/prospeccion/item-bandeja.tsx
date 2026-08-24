@@ -1,15 +1,16 @@
 import Link from "next/link";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PillEstado } from "@/components/prospeccion/pill-estado";
 import { cn } from "@/lib/utils";
-import { formatearValor } from "@/lib/formato";
+import { formatearValor, inicialesDe } from "@/lib/formato";
 import type { ItemBandeja as Item } from "@/lib/consultas/bandeja";
 
 /**
  * Una fila de la bandeja de prospección (CRM.docx §7.3).
  *
- * No es una tabla: cada ítem es una tarjeta apilada, porque en el prototipo la
- * bandeja convive con el cuadro de gestión a la derecha y no le queda ancho para
- * columnas. Por eso tampoco usa DataTable.
+ * Sigue el patrón de la bandeja de correo: avatar, nombre y detalle apilados,
+ * con el borde izquierdo marcando la selección. No es una tabla porque a la
+ * derecha va el cuadro de gestión y no queda ancho para columnas.
  *
  * La selección va por URL y no por estado local, igual que el filtro: el enlace
  * a una prospección concreta se puede compartir y el botón de atrás funciona.
@@ -30,36 +31,42 @@ export function ItemBandeja({
         scroll={false}
         aria-current={seleccionado ? "true" : undefined}
         className={cn(
-          "block border-b border-l-2 border-border px-5 py-4 transition",
+          "flex items-start gap-3 border-b border-l-2 border-border px-4 py-3.5 transition",
           seleccionado
             ? "border-l-want-naranja bg-want-naranja/5"
             : "border-l-transparent hover:bg-muted/50",
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <Avatar size="sm" className="mt-0.5">
+          <AvatarFallback className="bg-want-navy/10 text-want-navy">
+            {inicialesDe(item.asociadoNombre)}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
             <p className="truncate text-sm font-medium text-foreground">
               {item.asociadoNombre}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-              ID {item.asociadoIdentificacion} · {item.oficinaNombre}
-            </p>
+
+            {/* El valor se diligencia al pasar a oferta: en contacto no existe. */}
+            <span className="shrink-0 text-sm font-medium text-foreground">
+              {item.valor === null
+                ? ""
+                : formatearValor(item.valor, item.unidadMedida)}
+            </span>
           </div>
 
-          <PillEstado estado={item.estado} />
-        </div>
-
-        <div className="mt-2.5 flex items-baseline justify-between gap-3">
           <p className="truncate text-xs text-muted-foreground">
-            {item.productoNombre}
+            ID {item.asociadoIdentificacion} · {item.oficinaNombre}
           </p>
 
-          {/* El valor se diligencia al pasar a oferta: en contacto no existe. */}
-          <p className="shrink-0 text-sm font-medium text-foreground">
-            {item.valor === null
-              ? ""
-              : formatearValor(item.valor, item.unidadMedida)}
-          </p>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <p className="truncate text-xs text-muted-foreground">
+              {item.productoNombre}
+            </p>
+            <PillEstado estado={item.estado} />
+          </div>
         </div>
       </Link>
     </li>

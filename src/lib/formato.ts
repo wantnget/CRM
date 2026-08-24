@@ -82,3 +82,20 @@ const FECHA_HORA = new Intl.DateTimeFormat("es-CO", {
 export function formatoFechaHora(fecha: Date): string {
   return FECHA_HORA.format(fecha).replace(",", "");
 }
+
+/** Duración de una llamada en mm:ss. */
+export function formatoDuracion(segundos: number): string {
+  const m = Math.floor(segundos / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (segundos % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+/** Iniciales de un nombre completo, para los avatares sin foto. */
+export function inicialesDe(nombreCompleto: string): string {
+  const partes = nombreCompleto.trim().split(/\s+/);
+  const a = partes[0]?.charAt(0) ?? "";
+  const b = partes[1]?.charAt(0) ?? "";
+  return `${a}${b}`.toUpperCase() || "?";
+}

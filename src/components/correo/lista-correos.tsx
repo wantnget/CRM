@@ -1,24 +1,37 @@
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { ETIQUETA_CARPETA, ICONO_CARPETA, type Carpeta } from "@/components/correo/carpetas-correo";
+import { formatoFechaHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import type { Correo } from "@/lib/consultas/correo";
 
-/**
- * Lista de correos de la bandeja (solo UI). La selección vive en el padre:
- * esta lista es una vista pura, igual que ItemBandeja en Prospección.
- */
 export function ListaCorreos({
   correos,
+  carpeta,
+  totalEnCarpeta,
   seleccionadoId,
   onSeleccionar,
 }: {
   correos: Correo[];
+  carpeta: Carpeta;
+  totalEnCarpeta: number;
   seleccionadoId: string | null;
   onSeleccionar: (id: string) => void;
 }) {
   if (correos.length === 0) {
+    if (totalEnCarpeta === 0) {
+      const IconoCarpeta = ICONO_CARPETA[carpeta];
+      return (
+        <div className="flex flex-col items-center gap-2 px-5 py-16 text-center">
+          <IconoCarpeta className="size-6 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">
+            No hay correos en {ETIQUETA_CARPETA[carpeta].toLowerCase()}.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <p className="px-5 py-12 text-center text-sm text-muted-foreground">
         No hay correos que coincidan con la búsqueda.
@@ -51,48 +64,21 @@ export function ListaCorreos({
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <p
-                    className={cn(
-                      "truncate text-sm text-foreground",
-                      !correo.leido && "font-semibold",
-                    )}
-                  >
+                  <p className="truncate text-sm text-foreground">
                     {correo.remitente}
                   </p>
                   <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {correo.fecha}
+                    {formatoFechaHora(correo.fechaHora)}
                   </span>
                 </div>
 
-                <p
-                  className={cn(
-                    "truncate text-sm text-foreground",
-                    !correo.leido && "font-medium",
-                  )}
-                >
+                <p className="truncate text-sm font-medium text-foreground">
                   {correo.asunto}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {correo.extracto}
                 </p>
-
-                {correo.etiquetas.length > 0 ? (
-                  <div className="mt-1.5 flex flex-wrap gap-1">
-                    {correo.etiquetas.map((etiqueta) => (
-                      <Badge key={etiqueta} variant="outline" className="text-[10px]">
-                        {etiqueta}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
               </div>
-
-              {!correo.leido ? (
-                <span
-                  aria-hidden
-                  className="mt-1.5 size-2 shrink-0 rounded-full bg-want-naranja"
-                />
-              ) : null}
             </button>
           </li>
         );
