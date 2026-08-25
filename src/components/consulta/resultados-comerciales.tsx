@@ -4,6 +4,12 @@ import type { ResultadoProducto } from "@/lib/consulta-general";
 /**
  * "Presupuesto vs. Real por producto" (CRM.docx §5.2 / §6.2 / §7.2).
  *
+ * El umbral del layout es consulta de contenedor (@2xl = 42rem) y no media
+ * query: el sidebar se queda con 256px desde md, así que a 768px de viewport
+ * este panel tiene 448px reales. Con un md: recibiría el layout de fila, que
+ * pide 416px de mínimo, y las barras quedarían en 30px. Es el mismo umbral que
+ * usa la vista de tarjetas de DataTable.
+ *
  * Los tonos de los rótulos no son los de las barras: #F59E0B sobre blanco da
  * 2,1:1 y no cumple AA, así que la etiqueta usa un ámbar más oscuro (5,02:1) y
  * la de presupuesto un gris de 4,76:1. La barra sí conserva el color de marca,
@@ -37,12 +43,12 @@ function FilaProducto({ resultado }: { resultado: ResultadoProducto }) {
         : "Meta cumplida";
 
   return (
-    <div className="flex items-center gap-6 border-b border-border py-5 last:border-b-0">
-      <div className="flex-1">
+    <div className="flex flex-col gap-4 border-b border-border py-5 last:border-b-0 @2xl:flex-row @2xl:items-center @2xl:gap-6">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-want-navy">{resultado.nombre}</p>
 
         <div className="mt-3 flex items-center gap-3">
-          <span className="w-24 shrink-0 text-[11px] font-semibold tracking-wide text-amber-700 uppercase">
+          <span className="w-20 shrink-0 text-[11px] font-semibold tracking-wide text-amber-700 uppercase @2xl:w-24">
             Real
           </span>
           <div className="h-3 flex-1 rounded-full bg-muted">
@@ -57,7 +63,7 @@ function FilaProducto({ resultado }: { resultado: ResultadoProducto }) {
         </div>
 
         <div className="mt-2 flex items-center gap-3">
-          <span className="w-24 shrink-0 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+          <span className="w-20 shrink-0 text-[11px] font-semibold tracking-wide text-slate-500 uppercase @2xl:w-24">
             Presupuesto
           </span>
           <div className="h-3 flex-1 rounded-full bg-muted">
@@ -69,13 +75,15 @@ function FilaProducto({ resultado }: { resultado: ResultadoProducto }) {
         </div>
       </div>
 
-      <div className="w-40 shrink-0 rounded-lg border border-border px-4 py-3 text-center">
-        <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-          Cumplimiento
-        </p>
-        <p className={`mt-1 text-2xl font-bold ${colorCumplimiento(resultado.cumplimiento)}`}>
-          {resultado.cumplimiento === null ? "—" : `${resultado.cumplimiento}%`}
-        </p>
+      <div className="w-full shrink-0 rounded-lg border border-border px-4 py-3 @2xl:w-40 @2xl:text-center">
+        <div className="flex items-baseline justify-between gap-3 @2xl:block">
+          <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+            Cumplimiento
+          </p>
+          <p className={`text-2xl font-bold @2xl:mt-1 ${colorCumplimiento(resultado.cumplimiento)}`}>
+            {resultado.cumplimiento === null ? "—" : `${resultado.cumplimiento}%`}
+          </p>
+        </div>
         <p className="mt-1 text-[11px] text-muted-foreground">{textoBrecha}</p>
       </div>
     </div>
@@ -84,10 +92,10 @@ function FilaProducto({ resultado }: { resultado: ResultadoProducto }) {
 
 export function ResultadosComerciales({ resultados, alcance }: ResultadosComercialesProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between bg-want-navy px-5 py-3 text-white">
+    <div className="@container overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-want-navy px-5 py-3 text-white">
         <p className="text-sm font-semibold">Presupuesto vs. Real por producto</p>
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-3 rounded-full bg-want-naranja" />
             Real

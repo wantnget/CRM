@@ -54,7 +54,7 @@ export function TarjetaExpandible({ cuerpo, detalle }: TarjetaExpandibleProps) {
       </button>
 
       {abierta ? (
-        <div className="rounded-lg bg-muted/40 p-3">{detalle}</div>
+        <div className="@container rounded-lg bg-muted/40 p-3">{detalle}</div>
       ) : null}
     </>
   );

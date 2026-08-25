@@ -47,7 +47,7 @@ export default async function MetasPage({ searchParams }: MetasPageProps) {
           gestorId={filtro.gestorId}
         />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[360px_1fr]">
           <CargueMetas resumen={resumen} periodo={periodo} />
           <MetasVigentesTabla filas={filas} productos={productos} periodo={periodo} />
         </div>

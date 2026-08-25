@@ -93,7 +93,7 @@ export function CargueMetas({ resumen, periodo }: CargueMetasProps) {
             <button
               type="button"
               onClick={cancelar}
-              className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground sm:size-6"
               aria-label="Quitar archivo"
             >
               <X className="size-4" />
@@ -116,7 +116,7 @@ export function CargueMetas({ resumen, periodo }: CargueMetasProps) {
             <span className="text-sm text-muted-foreground">
               Arrastre el archivo o selecciónelo
             </span>
-            <span className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground">
+            <span className="inline-flex h-11 items-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground sm:h-8">
               Seleccionar CSV
             </span>
           </label>

@@ -49,7 +49,10 @@ export function ConsultaGeneral({
 
   return (
     <Tabs defaultValue="resultados">
-      <TabsList variant="line" className="h-auto gap-6 border-b border-border">
+      <TabsList
+        variant="line"
+        className="h-auto max-w-full justify-start gap-6 overflow-x-auto border-b border-border pb-1.5"
+      >
         <TabsTrigger
           value="resultados"
           className="px-1 pb-3 text-muted-foreground data-active:font-semibold data-active:text-want-navy data-active:after:bg-want-naranja"

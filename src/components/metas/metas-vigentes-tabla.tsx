@@ -61,13 +61,16 @@ export function MetasVigentesTabla({ filas, productos, periodo }: MetasVigentesT
         claveFila={(fila) => `${fila.gestorId}-${fila.periodo}`}
         vacio="Sin gestores para este filtro."
         expandible={(fila) => (
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-2 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
             {productos.map((producto) => {
               const valor = fila.valores[producto.codigo];
               return (
-                <div key={producto.codigo} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">{producto.nombre}</span>
-                  <span className="font-medium text-foreground">
+                <div
+                  key={producto.codigo}
+                  className="flex min-w-0 items-baseline justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 text-muted-foreground">{producto.nombre}</span>
+                  <span className="shrink-0 font-medium text-foreground">
                     {valor === null || valor === undefined ? (
                       <span className="text-muted-foreground">—</span>
                     ) : (

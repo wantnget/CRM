@@ -63,7 +63,7 @@ export function FilaExpandible({ celdas, detalle, colSpanTotal }: FilaExpandible
       {detalle !== undefined && abierta ? (
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={colSpanTotal} className="border-t-0 bg-muted/30 px-5 py-4">
-            {detalle}
+            <div className="@container">{detalle}</div>
           </TableCell>
         </TableRow>
       ) : null}

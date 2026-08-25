@@ -100,15 +100,15 @@ function TarjetaProducto({ producto }: { producto: EmbudoProducto }) {
 
 export function EmbudoProspeccion({ embudo }: EmbudoProspeccionProps) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="@container flex flex-col gap-6">
       <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between bg-want-navy px-5 py-3 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-want-navy px-5 py-3 text-white">
           {/* El conteo incluye las cerradas: etapaDe() las reparte en venta y no
               venta, así que el rótulo no puede decir "solo Prospección". */}
           <p className="text-sm font-semibold">
             Embudo de prospección · abiertas y cerradas del periodo
           </p>
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
             {ETAPAS.map(({ clave, etiqueta, color }) => (
               <span key={clave} className="flex items-center gap-1.5">
                 <span className={`h-1.5 w-3 rounded-full ${color}`} />
@@ -121,7 +121,7 @@ export function EmbudoProspeccion({ embudo }: EmbudoProspeccionProps) {
         <div className="p-5">
           <BarraGlobal conteo={embudo.global} />
 
-          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-4 @2xl:grid-cols-4">
             {ETAPAS.map(({ clave, etiqueta }) => (
               <div key={clave}>
                 <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -134,7 +134,7 @@ export function EmbudoProspeccion({ embudo }: EmbudoProspeccionProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @5xl:grid-cols-4">
         {embudo.porProducto.map((producto) => (
           <TarjetaProducto key={producto.codigo} producto={producto} />
         ))}

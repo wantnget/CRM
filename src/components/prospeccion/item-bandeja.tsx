@@ -50,7 +50,7 @@ export function ItemBandeja({
         </div>
 
         <div className="mt-2.5 flex items-baseline justify-between gap-3">
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="min-w-0 truncate text-xs text-muted-foreground">
             {item.productoNombre}
           </p>
 

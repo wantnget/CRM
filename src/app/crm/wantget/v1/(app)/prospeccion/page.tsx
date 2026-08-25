@@ -118,8 +118,8 @@ export default async function ProspeccionPage({
           />
         </div>
 
-        <div className="grid items-start gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-5">
+          <div className="min-w-0 lg:col-span-2">
             <BandejaProspeccion
               base={RUTA}
               bandeja={bandeja}
@@ -129,7 +129,7 @@ export default async function ProspeccionPage({
             />
           </div>
 
-          <div className="space-y-6 lg:col-span-3">
+          <div className="min-w-0 space-y-6 lg:col-span-3">
             {detalle ? (
               <>
                 <PanelProspeccion
