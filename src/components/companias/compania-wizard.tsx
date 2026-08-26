@@ -194,13 +194,18 @@ export function CompaniaWizard({ onCerrar }: { onCerrar: () => void }) {
     });
   }
 
+  // En angosto las tres píldoras muestran solo el número y el nombre del paso
+  // vigente va al lado: en 295px de encabezado cada tercio deja ~81px de texto
+  // y "Administradores" pide ~94px, así que con la etiqueta completa siempre
+  // quiebra. El nombre sigue en el DOM como sr-only para el lector de pantalla.
   const indicadorPasos = (
-    <ol className="mt-3 flex gap-2">
+    <ol className="mt-3 flex items-center gap-2">
       {PASOS.map((titulo, i) => (
         <li
           key={titulo}
+          aria-current={i === paso ? "step" : undefined}
           className={cn(
-            "flex-1 rounded-full border px-1.5 py-1 text-center text-[11px] leading-tight font-medium sm:px-2",
+            "flex min-w-8 items-center justify-center rounded-full border px-2 py-1 text-center text-[11px] leading-tight font-medium sm:flex-1",
             i === paso
               ? "border-want-navy bg-want-navy text-white"
               : i < paso
@@ -208,9 +213,17 @@ export function CompaniaWizard({ onCerrar }: { onCerrar: () => void }) {
                 : "border-border text-muted-foreground",
           )}
         >
-          {i + 1}. {titulo}
+          {i + 1}
+          <span className="sr-only sm:not-sr-only">. {titulo}</span>
         </li>
       ))}
+
+      <span
+        aria-hidden
+        className="min-w-0 flex-1 truncate text-[11px] font-medium text-want-navy sm:hidden"
+      >
+        {PASOS[paso]}
+      </span>
     </ol>
   );
 

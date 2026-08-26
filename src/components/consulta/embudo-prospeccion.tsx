@@ -111,7 +111,14 @@ export function EmbudoProspeccion({ embudo }: EmbudoProspeccionProps) {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
             {ETAPAS.map(({ clave, etiqueta, color }) => (
               <span key={clave} className="flex items-center gap-1.5">
-                <span className={`h-1.5 w-3 rounded-full ${color}`} />
+                {/* El aro va en las cuatro y no solo en Contacto: la banda usa
+                    --want-navy, el mismo token que el color de Contacto, así
+                    que su muestra quedaba a contraste 1:1. Uniforme, un color
+                    oscuro nuevo en el catálogo no vuelve a desaparecer sin que
+                    nadie lo note. */}
+                <span
+                  className={`h-1.5 w-3 rounded-full ring-1 ring-white/60 ${color}`}
+                />
                 {etiqueta}
               </span>
             ))}
